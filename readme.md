@@ -1,7 +1,7 @@
 # Animator of Multi Action Reactive Graphs (MARGe)
 
 <!-- Experiments in https://dtinas10.github.io/MARGe/lib/caos/tool/index.html -->
-Experiments in https://dtinas10.github.io/MARGe
+Run a snapshot of this tool in https://fm-dcc.github.io/MARGe
 
 Tutorial Video: https://www.dropbox.com/scl/fo/cm0tw42zlebqqzh7s054a/h?rlkey=urd0z5ern6akgkc3l8dqq8l7c&dl=0
 
@@ -22,8 +22,9 @@ The project can also be included as a submodule, as explained in the documentati
 
 ## Compilation
 
-You need to compile this project using the ScalaJS plug-in, following the steps below.
+You need to get the submodules dependencies (CAOS library), and later compile using ScalaJS, following the steps below.
 The result will be a JavaScript file that is already being imported by an existing HTML file. 
 
-1. `sbt fastLinkJS`
-2. open the file `lib/tool/index.html`
+1. `git submodule update --init`
+2. `sbt fastLinkJS`
+3. open the file `lib/tool/index.html`

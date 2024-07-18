@@ -241,15 +241,19 @@ object Program:
         findIncoTrace(miss - nextSt, know, maxit)
       case Some((nextSt,parent)) => // next state exists and is new
         val more = sos.next(nextSt)
+        var foundActive = false
         if more.isEmpty then
           val gg: RxGr = nextSt match {case x:System => x.main}
           if !gg.nextEdg.isEmpty then
-            for (i <- gg.nextEdg){
+            for (i <- gg.nextEdg if !foundActive){
               if gg.active.contains(i) then
-                return (buildTrace(parent),Some(nextSt), maxit)
+                foundActive = true
             }
-        val newMiss = (miss - nextSt) ++ more.map(kv=>(kv._2,Some(kv._1->nextSt)))
-        findIncoTrace(newMiss, know + (nextSt->parent), maxit - 1)
+        if foundActive then
+          (buildTrace(parent),Some(nextSt), maxit)
+        else
+          val newMiss = (miss - nextSt) ++ more.map(kv=>(kv._2,Some(kv._1->nextSt)))
+          findIncoTrace(newMiss, know + (nextSt->parent), maxit - 1)
 
   def findDeterPP(g:System,maxit: Int = 500): String =
     findDeterTrace(Map(g-> None),Map(),maxit)(using marge.backend.Semantics) match

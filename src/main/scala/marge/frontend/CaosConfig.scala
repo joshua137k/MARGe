@@ -2,6 +2,7 @@ package marge.frontend
 
 import caos.frontend.Configurator.*
 import caos.frontend.{Configurator, Documentation}
+import caos.sos.SOS
 import caos.view.*
 import marge.backend.*
 import marge.syntax.Program.RxGr
@@ -105,6 +106,19 @@ object CaosConfig extends Configurator[System]:
     "Generated LTS" -> view[System](x => Show.toMermaid(Program.lts(x.main),""), Mermaid),
     // "Build LTS (explore)" -> ltsExplore(e=>e, Semantics, x=>x.main.init, _.toString),
     // "Build LTS" -> lts(x=>x, Semantics, x=>x.init, _.toString),
+    //"LTS 2" -> lts(e=>e, Semantics, viewSt = _.toString),
+    "Global LTS info"
+      -> view((e:System) => {
+          val (st,eds,done) = SOS.traverse(Semantics,e,2000)
+          s"== Reactive Graph ==\nstates: ${e.main.se.size}\nsimple edges: ${
+            (for (_,setEdg) <- e.main.se.toList; e<-setEdg.toList yield ()).size 
+          }\nhyper edges: ${
+            (for (_,setEdg) <- e.main.he.toList; e<-setEdg.toList yield ()).size 
+          }\n== Encoded LTS ==\n" +
+          (if !done then s"Stopped after traversing 2000 states"
+           else s"States: ${st.size}\nEdges: $eds")
+        },
+        Text),
     "Find Strong Bisimulation (given a program \"A ~ B\")" ->
       compareStrongBisim(Semantics, Semantics,
         (e: System) => System(e.main, None),
@@ -121,14 +135,14 @@ object CaosConfig extends Configurator[System]:
     "Asynchornous Intrusive Product" -> lts(x=>x, IntrusiveProductA, indexedViewSt, _.toString),
     "Run Semantics (Synchornous Intrusive Product)" -> steps(e=>e, IntrusiveProductS, x => Show.toMermaid_Intrusive(x), _.toString, Mermaid),
     "Synchornous Intrusive Product" -> lts(x=>x, IntrusiveProductS, indexedViewSt, _.toString),
-   )
+  )
 
 
-    private var index = 0  
-    def indexedViewSt(x: System): String = {
-      index += 1
-      s"<${x.main.init}, ${x.toCompare.getOrElse(x.main.empty).init}>_${index}"
-    }
+  private var index = 0  
+  def indexedViewSt(x: System): String = {
+    index += 1
+    s"<${x.main.init}, ${x.toCompare.getOrElse(x.main.empty).init}>_${index}"
+  }
 
     // def indexedViewSt(x: System): String = {
     //   var index = 0  
@@ -142,8 +156,14 @@ object CaosConfig extends Configurator[System]:
   //// Documentation below
 
   override val footer: String =
-    """Simple animator of Labelled Reactive Graphs, meant to exemplify the
-      | CAOS libraries, used to generate this website.""".stripMargin 
+    """Source code at: <a target="_blank"
+      | href="https://github.com/fm-dcc/marge">
+      | https://github.com/fm-dcc/marge</a>. This is a companion tool for 
+      | a paper accepted at FACS 2024, based on <a target="_blank"
+      | href="https://github.com/arcalab/CAOS">
+      | CAOS</a>""".stripMargin
+  // Simple animator of Labelled Reactive Graphs, meant to exemplify the
+      // | CAOS libraries, used to generate this website.""".stripMargin 
       // Source code available online:
       // | <a target="_blank" href="https://github.com/arcalab/CAOS">
       // | https://github.com/arcalab/CAOS</a> (CAOS).""".stripMargin
