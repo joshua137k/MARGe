@@ -161,14 +161,15 @@ object Warnings2 extends SOS[String,System]:
     val g: RxGr = st.main 
     var s: Set[(A,System)] = Set.empty
     for (i<- g.nextEdg) {
-      var k = step(g,i)
+      val k = step(g,i)
       if k != None then
         s = s ++ Set((i.action,System(k.map(_._1).get,st.toCompare)))
       else 
         g.se.get(g.init) match{
-          case None => 
-              s = s ++ Set((s"${exclamationMark}Warning$exclamationMark: $cross ${i.action}",System(g.empty,st.toCompare)))        
-          case Some(t) => s = s 
+          case None =>
+//            s = s ++ Set((s"${exclamationMark}Warning$exclamationMark: $cross ${i.action}",System(g.empty,st.toCompare)))
+            s = s ++ Set((s"$cross ${i.action}",System(g.empty,st.toCompare)))
+          case Some(t) => s = s
           }  
     }
     s
@@ -182,9 +183,10 @@ object Warnings extends SOS[String,System]:
         s = s ++ Set((i.action,System(k.map(_._1).get,st.toCompare)))
       else 
         g.se.get(g.init) match{
-          case Some(t) => 
-              s = s ++ Set((s"${exclamationMark}Warning$exclamationMark: $cross ${i.action}",System(g.empty,st.toCompare)))        
-          case None => s = s 
+          case Some(t) =>
+//            s = s ++ Set((s"${exclamationMark}Warning$exclamationMark: $cross ${i.action}",System(g.empty,st.toCompare)))
+            s = s ++ Set((s"$cross ${i.action}",System(g.empty,st.toCompare)))
+          case None => s = s
           }  
     }
     s

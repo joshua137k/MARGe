@@ -103,10 +103,10 @@ object CaosConfig extends Configurator[System]:
     "Run Semantics With Intrusive Edges" -> steps(e=>e, IntrusiveProductA, x => Show.toMermaid_Intrusive(x), _.toString, Mermaid),
     "Run Semantics With Local Structure" -> steps(e=>e, Semantics, x => Show.toMermaid_twoGraphs_Bissi(System(x.main,Option(x.main.getLevel0)),"RSLS"), _.toString, Mermaid),
     // "Build LTS" -> lts(x=>x, Semantics, x=>x.main.init, _.toString),
-    "Generated LTS" -> view[System](x => Show.toMermaid(Program.lts(x.main),""), Mermaid),
+//    "Generated LTS" -> view[System](x => Show.toMermaid(Program.lts(x.main),""), Mermaid),
     // "Build LTS (explore)" -> ltsExplore(e=>e, Semantics, x=>x.main.init, _.toString),
     // "Build LTS" -> lts(x=>x, Semantics, x=>x.init, _.toString),
-    //"LTS 2" -> lts(e=>e, Semantics, viewSt = _.toString),
+    "Encoded LTS" -> lts(e=>e, Semantics, viewSt = _.toString),
     "Global LTS info"
       -> view((e:System) => {
           val (st,eds,done) = SOS.traverse(Semantics,e,2000)

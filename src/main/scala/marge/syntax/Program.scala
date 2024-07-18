@@ -160,9 +160,10 @@ object Program:
   private def updateActive(gr: RxGr, es: Set[Edge]): Option[Set[Edge]] =
     val toActivate   = for case HyperEdge(_,to,_,true)  <-es yield to
     val toDeactivate = for case HyperEdge(_,to,_,false) <-es yield to
-    if toActivate.intersect(toDeactivate).nonEmpty
-    then None
-    else Some(gr.active--toDeactivate++toActivate)
+//    if toActivate.intersect(toDeactivate).nonEmpty
+//    then None
+//    else Some(gr.active--toDeactivate++toActivate)
+    Some((gr.active++toActivate)--toDeactivate) // giving priority to deactivation, as in the paper
 
   /**
    * Searches for a deadlock state of a system
