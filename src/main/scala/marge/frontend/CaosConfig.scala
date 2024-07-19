@@ -27,16 +27,21 @@ object CaosConfig extends Configurator[System]:
   val examples = List(
     "Penguin" -> Examples.gabbayExample -> "Figure 7.4 in Dov M Gabbay, Cognitive Technologies Reactive Kripke Semantics",
     // "Gabbay Example2" -> Example_GabbayExample2-> "Figure 7.9 of Dov M Gabbay, Cognitive Technologies Reactive Kripke Semantics",
+    "Vending: 1$-2prod"->  Examples.VMPaper
+      -> "Example of a vending machine, presented in a recently accepted companion paper at FACS 2024. There is a total of 1$ to be spent, and some transitions are deactivated when there is not enough money.",
+    "Vending: 1$-3prod"->  Examples.vendingMachine
+      -> "Variation of the vending machine presented in a recently accepted companion paper at FACS 2024. This variation uses 3 products, and also models a total of 1$ to be spent, and some transitions are deactivated when there is not enough money.",
+    "Vending: limited-stock" -> Examples.VM_U
+      -> "Variation of the vending machine presented in a recently accepted companion paper at FACS 2024. This variation uses 2 different products, with limited availability (2 sodas, 1 beer), and some transitions are deactivated when a product runs out of stock.",  
     "Counter" ->  Examples.counter-> "Run 3 times only the action *act*",
     "Feature Model"->  Examples.featureModel -> "Fig 1 in Maxime Cordy et al. Model Checking Adaptive Software with Featured Transition Systems",
     // "VM"->  Examples.vendingMachine -> "We have 1$ only to spend in the vending machine and we need to decide the best option between cofee, chocolate and apple.",
     // "VM2"->  Examples.VMPaper -> "Example of Vending Machine presented in Reactive Graphs in action",
-    //"Vending Machine 2"->  Examples.vendingMachine2 -> "We have 1$ only to spend in the vending machine and we need to decide the best option between cofee, chocolate and apple.",
+    // "Vending Machine 2"->  Examples.vendingMachine2 -> "We have 1$ only to spend in the vending machine and we need to decide the best option between cofee, chocolate and apple.",
     "Conflicts" -> Examples.conflict -> "Example of Reactive Graph with a conflict.",
     // "Example" -> Examples.exampleOfReport -> "Example of Report",
     // "Ex1" -> Examples.ex1,
     "Bissi" -> Examples.bissimulation,
-    "VM_U" -> Examples.VM_U,	
     "Product" -> Examples.product,
     // "Product2" -> Examples.product2,
     "Intrusive Product" -> Examples.product3,

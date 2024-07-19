@@ -103,50 +103,50 @@ object Examples:
   val vendingMachine: String = 
     """init = Insert;
       |l0 = {
-      |  Insert --> Cofee by 0.5$,
+      |  Insert --> Coffee by 0.5$,
       |  Insert --> Apple by 0.5$,
       |  Insert --> Chocolate by 1$,
-      |  Cofee --> Insert by Get_cofee,
+      |  Coffee --> Insert by Get_coffee,
       |  Apple --> Insert by Get_apple,
       |  Chocolate --> Insert by Get_choc};
       |ln = {
-      |  ((Insert,Chocolate,1$),(Insert,Cofee,0.5$),Bullet,OFF),
+      |  ((Insert,Chocolate,1$),(Insert,Coffee,0.5$),Bullet,OFF),
       |  ((Insert,Chocolate,1$),(Insert,Apple,0.5$),Bullet,OFF),
       |  ((Insert,Chocolate,1$),(Insert,Chocolate,1$),Bullet,OFF),
-      |  ((Insert,Cofee,0.5$),(Insert,Cofee,0.5$),Circ,OFF),
-      |  ((Insert,Cofee,0.5$),(Insert,Chocolate,1$),Bullet,OFF),
-      |  ((Insert,Cofee,0.5$),((Insert,Cofee,0.5$),(Insert,Cofee,0.5$),Circ,OFF),Bullet,ON),
-      |  ((Insert,Cofee,0.5$),((Insert,Apple,0.5$),(Insert,Apple,0.5$),Circ,OFF),Bullet,ON),
+      |  ((Insert,Coffee,0.5$),(Insert,Coffee,0.5$),Circ,OFF),
+      |  ((Insert,Coffee,0.5$),(Insert,Chocolate,1$),Bullet,OFF),
+      |  ((Insert,Coffee,0.5$),((Insert,Coffee,0.5$),(Insert,Coffee,0.5$),Circ,OFF),Bullet,ON),
+      |  ((Insert,Coffee,0.5$),((Insert,Apple,0.5$),(Insert,Apple,0.5$),Circ,OFF),Bullet,ON),
       |  ((Insert,Apple,0.5$),(Insert,Apple,0.5$),Circ,OFF),
       |  ((Insert,Apple,0.5$),(Insert,Chocolate,1$),Bullet,OFF),
       |  ((Insert,Apple,0.5$),((Insert,Apple,0.5$),(Insert,Apple,0.5$),Circ,OFF),Bullet,ON),
-      |  ((Insert,Apple,0.5$),((Insert,Cofee,0.5$),(Insert,Cofee,0.5$),Circ,OFF),Bullet,ON),
-      |  ((Insert,Apple,0.5$),(Insert,Cofee,0.5$),Circ,OFF),
-      |  ((Insert,Cofee,0.5$),(Insert,Apple,0.5$),Circ,OFF),
-      |  ((Insert,Apple,0.5$),((Insert,Apple,0.5$),(Insert,Cofee,0.5$),Circ,OFF),Bullet,ON),
-      |  ((Insert,Cofee,0.5$),((Insert,Apple,0.5$),(Insert,Cofee,0.5$),Circ,OFF),Bullet,ON),
-      |  ((Insert,Apple,0.5$),((Insert,Cofee,0.5$),(Insert,Apple,0.5$),Circ,OFF),Bullet,ON),
-      |  ((Insert,Cofee,0.5$),((Insert,Cofee,0.5$),(Insert,Apple,0.5$),Circ,OFF),Bullet,ON)}
+      |  ((Insert,Apple,0.5$),((Insert,Coffee,0.5$),(Insert,Coffee,0.5$),Circ,OFF),Bullet,ON),
+      |  ((Insert,Apple,0.5$),(Insert,Coffee,0.5$),Circ,OFF),
+      |  ((Insert,Coffee,0.5$),(Insert,Apple,0.5$),Circ,OFF),
+      |  ((Insert,Apple,0.5$),((Insert,Apple,0.5$),(Insert,Coffee,0.5$),Circ,OFF),Bullet,ON),
+      |  ((Insert,Coffee,0.5$),((Insert,Apple,0.5$),(Insert,Coffee,0.5$),Circ,OFF),Bullet,ON),
+      |  ((Insert,Apple,0.5$),((Insert,Coffee,0.5$),(Insert,Apple,0.5$),Circ,OFF),Bullet,ON),
+      |  ((Insert,Coffee,0.5$),((Insert,Coffee,0.5$),(Insert,Apple,0.5$),Circ,OFF),Bullet,ON)}
     """.stripMargin
 
   val vendingMachine2: String = 
     """init = Insert;
       |l0 = {
-      |  Insert --> Cofee by 0.5$,
+      |  Insert --> Coffee by 0.5$,
       |  Insert --> Chips by 1$,
       |  Insert --> Chocolate by 1$,
-      |  Cofee --> Insert by Get_cofee,
+      |  Coffee --> Insert by Get_coffee,
       |  Chips --> Insert by Get_apple,
       |  Chocolate --> Insert by Get_choc};
       |ln = {
-      |  ((Insert,Chocolate,1$),(Insert,Cofee,0.5$),Bullet,OFF),
+      |  ((Insert,Chocolate,1$),(Insert,Coffee,0.5$),Bullet,OFF),
       |  ((Insert,Chocolate,1$),(Insert,Chips,1$),Bullet,OFF),
       |  ((Insert,Chocolate,1$),(Insert,Chocolate,1$),Bullet,OFF),
-      |  ((Insert,Cofee,0.5$),(Insert,Cofee,0.5$),Circ,OFF),
-      |  ((Insert,Cofee,0.5$),(Insert,Chocolate,1$),Bullet,OFF),
-      |  ((Insert,Cofee,0.5$),(Insert,Chips,1$),Bullet,OFF),
-      |  ((Insert,Cofee,0.5$),((Insert,Cofee,0.5$),(Insert,Cofee,0.5$),Circ,OFF),Bullet,ON),
-      |  ((Insert,Chips,1$),(Insert,Cofee,0.5$),Bullet,OFF),
+      |  ((Insert,Coffee,0.5$),(Insert,Coffee,0.5$),Circ,OFF),
+      |  ((Insert,Coffee,0.5$),(Insert,Chocolate,1$),Bullet,OFF),
+      |  ((Insert,Coffee,0.5$),(Insert,Chips,1$),Bullet,OFF),
+      |  ((Insert,Coffee,0.5$),((Insert,Coffee,0.5$),(Insert,Coffee,0.5$),Circ,OFF),Bullet,ON),
+      |  ((Insert,Chips,1$),(Insert,Coffee,0.5$),Bullet,OFF),
       |  ((Insert,Chips,1$),(Insert,Chips,1$),Bullet,OFF),
       |  ((Insert,Chips,1$),(Insert,Chocolate,1$),Bullet,OFF)}
     """.stripMargin
@@ -178,16 +178,16 @@ object Examples:
   val VMPaper: String =
     """init = Insert;
     |l0 = {
-    |  Insert --> Cofee by 0.5$,
+    |  Insert --> Coffee by 0.5$,
     |  Insert --> Chocolate by 1$,
-    |  Cofee --> Insert by Get_cofee,
+    |  Coffee --> Insert by Get_coffee,
     |  Chocolate --> Insert by Get_choc};
     |ln = {
-    |  ((Insert,Chocolate,1$),(Insert,Cofee,0.5$),Bullet,OFF),
+    |  ((Insert,Chocolate,1$),(Insert,Coffee,0.5$),Bullet,OFF),
     |  ((Insert,Chocolate,1$),(Insert,Chocolate,1$),Bullet,OFF),
-    |  ((Insert,Cofee,0.5$),(Insert,Cofee,0.5$),Circ,OFF),
-    |  ((Insert,Cofee,0.5$),(Insert,Chocolate,1$),Bullet,OFF),
-    |  ((Insert,Cofee,0.5$),((Insert,Cofee,0.5$),(Insert,Cofee,0.5$),Circ,OFF),Bullet,ON)}
+    |  ((Insert,Coffee,0.5$),(Insert,Coffee,0.5$),Circ,OFF),
+    |  ((Insert,Coffee,0.5$),(Insert,Chocolate,1$),Bullet,OFF),
+    |  ((Insert,Coffee,0.5$),((Insert,Coffee,0.5$),(Insert,Coffee,0.5$),Circ,OFF),Bullet,ON)}
     """.stripMargin 
 
   val product: String = 
