@@ -22965,7 +22965,7 @@ function $c_Lmarge_frontend_CaosConfig$() {
     })))));
     return ((((((("== Reactive Graph ==\nstates: " + $$x22) + "\nsimple edges: ") + $$x21) + "\nhyper edges: ") + this$90.length__I()) + "\n== Encoded LTS ==\n") + ((!done$2) ? "Stopped after traversing 2000 states" : ((("States: " + $n(st$2).size__I()) + "\nEdges: ") + eds$2)))
   })), $m_Lcaos_view_Text$());
-  var $$x23 = new $c_T2("Global LTS info", y$19);
+  var $$x23 = new $c_T2("Number of states and edges", y$19);
   var y$20 = $m_Lcaos_frontend_Configurator$().compareStrongBisim__Lcaos_sos_SOS__Lcaos_sos_SOS__F1__F1__F1__F1__F1__I__Lcaos_frontend_widgets_WidgetInfo($m_Lmarge_backend_Semantics$(), $m_Lmarge_backend_Semantics$(), new $c_sjsr_AnonFunction1(((e$7$1) => {
     var e$12 = $as_Lmarge_syntax_Program$System(e$7$1);
     var main$3 = $n(e$12).Lmarge_syntax_Program$System__f_main;

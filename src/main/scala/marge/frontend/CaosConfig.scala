@@ -107,7 +107,7 @@ object CaosConfig extends Configurator[System]:
     // "Build LTS (explore)" -> ltsExplore(e=>e, Semantics, x=>x.main.init, _.toString),
     // "Build LTS" -> lts(x=>x, Semantics, x=>x.init, _.toString),
     "Encoded LTS" -> lts(e=>e, Semantics, viewSt = _.toString),
-    "Global LTS info"
+    "Number of states and edges"
       -> view((e:System) => {
           val (st,eds,done) = SOS.traverse(Semantics,e,2000)
           s"== Reactive Graph ==\nstates: ${e.main.se.size}\nsimple edges: ${
