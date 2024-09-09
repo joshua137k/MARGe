@@ -23,6 +23,22 @@ object Semantics extends SOS[String,System]:
     }
     s
 
+/** Stops when a conflict is found */
+object SemanticsConfl extends SOS[String,System]:
+  def next[A>:String](st : System): Set[(A,System)] =
+    val g: RxGr = st.main
+    var s: Set[(A,System)] = Set.empty
+    for (i<- g.nextEdg) {
+      var k = stepReason(g,i)
+      k match
+        case Left(str) if str.startsWith("Disabled") => {} // do not add actions by disabled arrows
+        case Left(reason) => // error if any other reason is given
+          sys.error(reason)
+        case Right(value) => // some ok edge - add it to the possible steps
+          s = s ++ Set((i.action, System(value._1, st.toCompare)))
+    }
+    s
+
 object SemanticsTwo extends SOS[String,System]: 
   def next2[A>:String](st : System): Set[(A,System)] = 
     Semantics.next(st) ++ 

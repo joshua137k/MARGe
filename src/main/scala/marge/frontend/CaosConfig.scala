@@ -97,7 +97,8 @@ object CaosConfig extends Configurator[System]:
   val widgets = List(
     "View Pretty Data" -> view[System](x => Show.toMermaid(x.main,""), Code("haskell")).moveTo(1),
     "Dead Locks" -> view[System](Program.findDeadlockTracePP(_), Text).moveTo(1),
-    "Conflicts / Contradictory Effects" -> view[System](Program.findIncoPP(_), Text).moveTo(1),    
+    "Conflicts / Contradictory Effects" -> view[System](Program.findConflictsPP(_), Text).moveTo(1),
+//    "Conflicts / Contradictory Effects" -> view[System](Program.findIncoPP(_), Text).moveTo(1),
     "Determism" -> view[System](Program.findDeterPP(_), Text).moveTo(1),    
     // "Global Structure View" -> view(x =>Show.toMermaid_twoGraphs_Bissi(x,"TG"), Mermaid),
     "Global Structure View" -> view(x =>Show.toMermaid_Intrusive(x), Mermaid),

@@ -131,17 +131,20 @@ object Program:
    *         or a new graph by updating the init state and the active Edge,
    *         together with all action labels involved.
    */
-  def step(rxGr: RxGr, se:SimpleEdge): Option[(RxGr,Set[Action])] = // | String =
+  def stepReason(rxGr: RxGr, se:SimpleEdge, allowConfl: Boolean = false): Either[String,(RxGr,Set[Action])] = // | String =
     // stop if the edge is not active
-    if !rxGr.active(se) then return None //"The edge are disable"
+    if !rxGr.active(se) then return Left(s"Disabled edge $se") //"The edge are disable"
     // collect Edge involved
     val Edge =
       collectEdge(rxGr,rxGr.getHe(se),Set(se))
     // collect actions
     val actions = Edge.map(_.act)
     // update active Edge
-    val active = updateActive(rxGr,Edge)
+    val active = updateActive(rxGr,Edge,allowConfl,se)
     active.map(a => (RxGr(rxGr.se,rxGr.he,se.to,a),actions))
+
+  def step(rxGr: RxGr, se:SimpleEdge, allowConfl: Boolean = true): Option[(RxGr,Set[Action])] =
+    stepReason(rxGr,se,allowConfl).map(Some.apply).getOrElse(None)
 
   /** Calculates all Edge that are triggered, avoiding loops. */
   @tailrec
@@ -157,13 +160,20 @@ object Program:
 
   /** Given a set of Edge that are triggered, calculates a new set of
    * active Edge, returning None if some edge is both activated and deactivated. */
-  private def updateActive(gr: RxGr, es: Set[Edge]): Option[Set[Edge]] =
+  private def updateActive(gr: RxGr, es: Set[Edge],allowConfl: Boolean, se:SimpleEdge): Either[String,Set[Edge]] =
     val toActivate   = for case HyperEdge(_,to,_,true)  <-es yield to
     val toDeactivate = for case HyperEdge(_,to,_,false) <-es yield to
-//    if toActivate.intersect(toDeactivate).nonEmpty
-//    then None
+//    println(s"toActivate: ${
+//      toActivate.mkString(",")}\ntoDeactive: ${
+//      toDeactivate.mkString(",")}\nintersection (allow? $allowConfl): ${
+//      toActivate.intersect(toDeactivate).mkString(",")}")
+    if !allowConfl && toActivate.intersect(toDeactivate).nonEmpty
+    then
+      Left(s"Conflict when firing ${se.pretty}.\nEdge(s) activated and deactivated:\n${
+        toActivate.intersect(toDeactivate).map(x=>"  "+x.pretty).mkString("\n")}")
 //    else Some(gr.active--toDeactivate++toActivate)
-    Some((gr.active++toActivate)--toDeactivate) // giving priority to deactivation, as in the paper
+    else
+      Right((gr.active++toActivate)--toDeactivate) // giving priority to deactivation, as in the paper
 
   /**
    * Searches for a deadlock state of a system
@@ -284,7 +294,40 @@ object Program:
           val newMiss = (miss - nextSt) ++ more.map(kv=>(kv._2,Some(kv._1->nextSt)))
           findDeterTrace(newMiss, know + (nextSt->parent), maxit - 1)
 
-  
+
+  def findConflictsPP(s: System, maxit: Int = 500): String =
+//    findIncoTrace(Map(g -> None), Map(), maxit)(using marge.backend.Semantics) match
+//
+//  def findInconsistencyPP(sos: SOS[String, System], s: System, max: Int = 5000): String =
+      try{
+        val sos = marge.backend.SemanticsConfl
+        val (states,edgeNr,finished) = SOS.traverse(sos,s,maxit)
+        s"No conflicts found after ${states.size} states and $edgeNr edges${
+          if !finished then " (not all states covered)" else ""}"
+      }catch
+        case e: Throwable => e.getMessage
+
+//  def findInconsistency(sos: SOS[String, System], s: System, max: Int = 5000): (Option[(String,System)], Int, Boolean) =
+//    def aux(next: Set[System], done: Set[System], edges: Int, limit: Int): (Set[System], Int, Boolean, Option[(String,System)]) =
+//      if limit <= 0 then
+//        return (done, edges, false, None)
+//      next.headOption match
+//        case None =>
+//          (done, edges, true, None)
+//        case Some(st) if done contains st =>
+//          aux(next - st, done, edges, limit)
+//        case Some(st) => //visiting new state
+//          val more = sos.next(st)
+//
+//          val toActivate = for case HyperEdge(_, to, _, true) <- es yield to
+//          val toDeactivate = for case HyperEdge(_, to, _, false) <- es yield to
+//
+//          aux((next - st) ++ more.map(_._2), done + st, edges + more.size, limit - 1)
+//
+//    aux(Set(s), Set(), 0, max)
+
+
+
   // def AsynchronousProduct(st:System): RxGr = {
   //   var g1: RxGr = lts(st.main) 
   //   var g2: RxGr = lts(st.toCompare.getOrElse(g.empty))
