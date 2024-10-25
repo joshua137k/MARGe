@@ -8,8 +8,6 @@ import marge.backend.*
 import marge.syntax.{Parser2, Program2}
 import marge.syntax.Program2.{RxGraph, RxSemantics}
 
-
-
 /** Object used to configure which analysis appear in the browser */
 object CaosConfig2 extends Configurator[RxGraph]:
   val name = "Animator of Labelled Reactive Graphs"
@@ -69,8 +67,8 @@ object CaosConfig2 extends Configurator[RxGraph]:
       | a paper accepted at FACS 2024, based on <a target="_blank"
       | href="https://github.com/arcalab/CAOS">
       | CAOS</a>. The original version used for FACS can be found at <a target="_blank"
-      | href="https://fm-dcc.github.io/marge/marge-0.1.html">
-      | https://fm-dcc.github.io/marge/marge-0.1.html</a>.""".stripMargin
+      | href="https://fm-dcc.github.io/MARGe/marge-0.1.html">
+      | https://fm-dcc.github.io/MARGe/marge-0.1.html</a>.""".stripMargin
   // Simple animator of Labelled Reactive Graphs, meant to exemplify the
   // | CAOS libraries, used to generate this website.""".stripMargin
   // Source code available online:
