@@ -71,7 +71,8 @@ CodeMirror.defineMode("caos", function(_config, modeConfig) {
       // if (source.eat('.')) {
       //   return "qualifier";
       // }
-      return "variable-2";
+      // return "variable-2";
+      return "variable";
     }
 
     if (smallRE.test(ch)) {
@@ -194,11 +195,11 @@ CodeMirror.defineMode("caos", function(_config, modeConfig) {
 //    setType("keyword")( // where, ...
 //      "def");
 
-    setType("keyword")("while","skip","if","then","else",":=");
+    setType("keyword")("aut","disabled","init");
 
 
     setType("builtin")( // types and constructors
-      "+","||","*","!","&&","<",">","=");
+      "--x","--!","->>","-->",":");
 
 //    setType("builtin")(
 //      );
