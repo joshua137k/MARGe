@@ -199,7 +199,7 @@ CodeMirror.defineMode("caos", function(_config, modeConfig) {
 
 
     setType("builtin")( // types and constructors
-      "--x","--!","->>","-->",":");
+      "--x","--!","!--!","->>","-->",":");
 
 //    setType("builtin")(
 //      );

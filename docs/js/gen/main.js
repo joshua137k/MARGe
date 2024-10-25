@@ -9921,7 +9921,16 @@ $c_Lmarge_syntax_Parser2$.prototype.arrow__Lcats_parse_Parser = (function() {
     return $n(\u03b44$).addOff__Lmarge_syntax_Program2$QName__Lmarge_syntax_Program2$QName__Lmarge_syntax_Program2$QName__Lmarge_syntax_Program2$RxGraph(s1$5, s2$5, l$5)
   }));
   var that$2 = $m_Lcats_parse_Parser$().as__Lcats_parse_Parser__O__Lcats_parse_Parser(this$7, b$3);
-  return this$8.orElse__Lcats_parse_Parser__Lcats_parse_Parser(that$2)
+  var this$10 = $n(this$8.orElse__Lcats_parse_Parser__Lcats_parse_Parser(that$2));
+  var this$9 = $n($m_Lcats_parse_Parser$().string__T__Lcats_parse_Parser("!--!"));
+  var b$6 = new $c_sjsr_AnonFunction3(((a, b$4, c) => {
+    var a$1 = $as_Lmarge_syntax_Program2$QName(a);
+    var b$5 = $as_Lmarge_syntax_Program2$QName(b$4);
+    var c$1 = $as_Lmarge_syntax_Program2$QName(c);
+    return $n($n($m_Lmarge_syntax_Program2$RxGraph$().apply__Lmarge_syntax_Program2$RxGraph()).addOff__Lmarge_syntax_Program2$QName__Lmarge_syntax_Program2$QName__Lmarge_syntax_Program2$QName__Lmarge_syntax_Program2$RxGraph(a$1, b$5, c$1)).addOff__Lmarge_syntax_Program2$QName__Lmarge_syntax_Program2$QName__Lmarge_syntax_Program2$QName__Lmarge_syntax_Program2$RxGraph(b$5, a$1, c$1)
+  }));
+  var that$3 = $m_Lcats_parse_Parser$().as__Lcats_parse_Parser__O__Lcats_parse_Parser(this$9, b$6);
+  return this$10.orElse__Lcats_parse_Parser__Lcats_parse_Parser(that$3)
 });
 var $d_Lmarge_syntax_Parser2$ = new $TypeData().initClass({
   Lmarge_syntax_Parser2$: 0

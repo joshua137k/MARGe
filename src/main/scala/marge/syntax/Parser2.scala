@@ -97,7 +97,9 @@ object Parser2 :
     string("-->").as(RxGraph().addEdge) |
     string("->>").as(RxGraph().addOn) |
     string("--!").as(RxGraph().addOff) |
-    string("--x").as(RxGraph().addOff)
+    string("--x").as(RxGraph().addOff) |
+    string("!--!").as((a:QName,b:QName,c:QName) => RxGraph()
+      .addOff(a,b,c).addOff(b,a,c))
 
 //  private def on:  P[Boolean] = P.string("ON").map( x => true)
 //  private def off: P[Boolean] = P.string("OFF").map( x => false)
