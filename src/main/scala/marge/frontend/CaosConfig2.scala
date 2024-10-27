@@ -6,7 +6,8 @@ import caos.sos.SOS
 import caos.view.*
 import marge.backend.*
 import marge.syntax.{Parser2, Program2}
-import marge.syntax.Program2.{RxGraph, RxSemantics}
+import marge.syntax.Program2.RxGraph
+import marge.backend.RxSemantics
 
 /** Object used to configure which analysis appear in the browser */
 object CaosConfig2 extends Configurator[RxGraph]:
@@ -42,7 +43,7 @@ object CaosConfig2 extends Configurator[RxGraph]:
      "Step-by-step (txt)" -> steps((e:RxGraph)=>e, RxSemantics, _.toString, _.show, Text),
 //     "Step-by-step (debug)" -> steps((e:RxGraph)=>e, Program2.RxSemantics, RxGraph.toMermaid, _.show, Text),
      "All steps" -> lts((e:RxGraph)=>e, RxSemantics, x => x.inits.mkString(","), _.toString),
-     "Possible problems" -> view(r=>RxGraph.randomWalk(r)._4 match
+     "Possible problems" -> view(r=>AnalyseLTS.randomWalk(r)._4 match
         case Nil => "No deadlocks, unreachable states/edges, nor inconsistencies"
         case m => m.mkString("\n")
        , Text),
