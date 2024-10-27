@@ -35,6 +35,12 @@ object Program2:
   type Edge = (QName,QName,QName) //from,to,by
   type Edges = Set[Edge]
   type EdgeMap = Rel[QName,(QName,QName)] // optimised structure for set of edges
+  def showEdge(e:Edge) =
+    s"${e._1}-${e._2}${if e._3.n.nonEmpty then s":${e._3}" else ""}"
+  private def showEdge(abc:Edges): String =
+    abc.map(showEdge).mkString(", ")
+  private def showEdge(abc:EdgeMap): String =
+    showEdge(for (a,bcs) <- abc.toSet; (b,c)<-bcs yield (a,b,c))
 
   /**
    * Reactive graph.
@@ -56,15 +62,14 @@ object Program2:
 //                     aut: Set[(QName,QName)],
 //                     decl: Map[QName,RxGraph],
 
-    private def mkEdge[A,B,C](abc:Iterable[(A,B,C)]): String =
-      abc.map(x => s" ${x._1}-${x._2}${if x._3.toString.isBlank then "" else ":"}${x._3}").mkString(",")
-    private def mkEdge[A,B,C](abc:Map[A,Set[(B,C)]]): String =
-      mkEdge(for (a,bcs) <- abc.toSet; (b,c)<-bcs yield (a,b,c))
     def showSimple: String =
-      s"[init] ${inits.mkString(",")} [act]${mkEdge(act)}"
+      s"[at] ${inits.mkString(",")} [active] ${showEdge(act)}"
     override def toString: String =
-      s"[init] ${inits.mkString(",")}\n[act]${mkEdge(act)}\n[edges]${
-        mkEdge(edg)}\n[on]${mkEdge(on)}\n[off]${mkEdge(off)}"
+      s"[init] ${inits.mkString(",")}\n[act]${showEdge(act)}\n[edges]${
+        showEdge(edg)}\n[on]${showEdge(on)}\n[off]${showEdge(off)}"
+
+    def states =
+      for (src,dests)<-edg.toSet; (d,_)<-dests; st <- Set(src,d) yield st
 
     def addEdge(s1:QName,s2:QName,l:QName) =
       this.copy(edg = add(s1->(s2,l),edg), lbls = add(l->(s1,s2,l),lbls), act = act+((s1,s2,l)))
@@ -83,6 +88,58 @@ object Program2:
     def apply(): RxGraph = RxGraph(
       Map().withDefaultValue(Set()),Map().withDefaultValue(Set()),
       Map().withDefaultValue(Set()),Map().withDefaultValue(Set()),Set(),Set())
+
+    // Idea: check state invariants (no deadlock), transition invariants (no inconsistencies)
+    // - maybe: all states reached; all edges taken, all hyperedges taken.
+    // - change limit to count edges, not states processed
+    def randomWalk(rx:RxGraph, max:Int=5000): (Set[RxGraph],Int,Edges,List[String]) =
+      val states = for (a,bs)<-rx.edg.toSet; (b,_)<-bs; s<-Set(a,b) yield s
+      def aux(next:Set[RxGraph], done:Set[RxGraph],
+              nEdges:Int, fired:Edges, probs:List[String],
+              limit:Int): (Set[RxGraph],Int,Edges,List[String]) =
+        if limit <=0 then
+          // error 1: too big
+          return (done,nEdges,fired, s"Reached limit - traversed +$max edges."::probs)
+        next.headOption match
+          case None =>
+            val missingStates: Set[QName] =
+              (rx.inits ++ fired.map(_._2)).intersect(states) -- done.flatMap(_.inits)
+            val missingEdges: Edges =
+              (for (a,dests)<-rx.edg.toSet; (b,c)<-dests yield (a,b,c)) ++
+              (for (a,dests)<-rx.on.toSet;  (b,c)<-dests yield (a,b,c)) ++
+              (for (a,dests)<-rx.off.toSet; (b,c)<-dests yield (a,b,c))
+                -- fired
+            if missingStates.isEmpty && missingEdges.isEmpty then
+              (done, nEdges, fired, probs) // success
+            else
+              (done, nEdges, fired,
+                (if missingStates.nonEmpty // error 2: unreachable states
+                 then List(s"Unreachable state(s): ${missingStates.mkString(",")}") else Nil) :::
+                (if missingEdges.nonEmpty  // error 3: unreachable edges
+                  then List(s"Unreachable edge(s): ${showEdge(missingEdges)}") else Nil) ::: probs
+              )
+          case Some(st) if done contains st =>
+            aux(next-st,done,nEdges,fired,probs,limit)
+          case Some(st) => //visiting new state
+            val more = RxSemantics.nextEdge(st)
+            val nEdges2 = more.size
+            val newEdges = more.map(_._1)
+            var incons = Set[String]()
+            var moreEdges: Edges = Set()
+            for e<-newEdges do
+              val (toAct,toDeact) = RxSemantics.toOnOff(e, st)
+              val fromE = RxSemantics.from(e,st)
+              moreEdges ++= fromE
+              val shared = toAct.intersect(toDeact)
+              if shared.nonEmpty then
+                val triggers = RxSemantics.from(e,st) -- shared
+                incons = incons + s"activating and deactivating `${showEdge(shared)}` by `${showEdge(triggers)}`"
+            var newProbs = probs
+            if more.isEmpty then newProbs ::= s"Deadlock found: ${st.showSimple}"
+            if incons.nonEmpty then newProbs ::= s"Found inconsistency: ${incons.mkString(", ")}"
+            aux((next-st)++more.map(_._2), done+st, nEdges+nEdges2,fired++newEdges++moreEdges,newProbs,limit-nEdges2)
+
+      aux(Set(rx), Set(), 0, Set(), Nil, max)
 
     def toMermaid(rx: RxGraph): String =
       var i = -1
@@ -122,14 +179,12 @@ object Program2:
 
 
   object RxSemantics extends caos.sos.SOS[QName,RxGraph]:
-    def from(e: QName, rx: RxGraph): Set[Edge] =
-      from(rx.edg(e).map((x, y) => (e, x, y)), Set())(using rx)
-
+//    def from(e: QName, rx: RxGraph): Set[Edge] =
+//      from(rx.edg(e).map((x, y) => (e, x, y)), Set())(using rx)
     def from(e: Edge, rx: RxGraph): Set[Edge] =
       from(Set(e), Set())(using rx: RxGraph)
-
-    //    @tailrec
-    def from(es: Set[Edge], done: Set[Edge])(using rx: RxGraph): Set[Edge] =
+    @tailrec
+    private def from(es: Edges, done: Set[Edge])(using rx: RxGraph): Edges =
       es.headOption match
         case Some(e) =>
           if !rx.act(e) || done(e) then from(es - e, done)
@@ -138,6 +193,14 @@ object Program2:
             from((es ++ more) - e, done + e)
         case None => done
 
+    def toOnOff(e:Edge, rx:RxGraph): (Edges,Edges) =
+//      from(e, rx).partition(e => rx.on(e._1) contains (e._2 -> e._3)) match
+//        case (on,off) => (on.flatMap(e=>rx.lbls(e._2)),off.flatMap(e=>rx.lbls(e._2)))
+      val frome = from(e,rx)
+      (frome.filter(e => rx.on(e._1)  contains (e._2 -> e._3)).flatMap(e=>rx.lbls(e._2)),
+       frome.filter(e => rx.off(e._1) contains (e._2 -> e._3)).flatMap(e=>rx.lbls(e._2)))
+
+
     //    def turnOn(triggers: Edges): Edges =
     //      for (_,l2,_) <- triggers; on.exists(())
 
@@ -145,21 +208,32 @@ object Program2:
       for st <- rx.inits
           (st2, lbl) <- rx.edg(st) if rx.act((st, st2, lbl))
       yield
-        val toTrigger = from((st, st2, lbl), rx)
-        val toAct = toTrigger
-          .filter(e => rx.on(e._1) contains (e._2 -> e._3))
-          .flatMap(e => rx.lbls(e._2))
-        val toDeact = toTrigger
-          .filter(e => rx.off(e._1) contains (e._2 -> e._3))
-          .flatMap(e => rx.lbls(e._2))
+        val (toAct,toDeact) = toOnOff((st,st2,lbl), rx)
         val newAct = (rx.act ++ toAct) -- toDeact // biased to deactivation
         val newInits = (rx.inits - st) + st2
         lbl -> rx.copy(inits = newInits, act = newAct)
 
+    /** Similar to `next`, but include the full transition instead of only the action name */
+    def nextEdge(rx:RxGraph): Set[(Edge, RxGraph)] =
+      for st <- rx.inits
+          (st2, lbl) <- rx.edg(st) if rx.act((st, st2, lbl))
+      yield
+        val (toAct,toDeact) = toOnOff((st,st2,lbl), rx)
+        val newAct = (rx.act ++ toAct) -- toDeact // biased to deactivation
+        val newInits = (rx.inits - st) + st2
+        (st,st2,lbl) -> rx.copy(inits = newInits, act = newAct)
+
+  //        val toTrigger = from((st, st2, lbl), rx)
+  //        val toAct = toTrigger
+  //          .filter(e => rx.on(e._1) contains (e._2 -> e._3))
+  //          .flatMap(e => rx.lbls(e._2))
+  //        val toDeact = toTrigger
+  //          .filter(e => rx.off(e._1) contains (e._2 -> e._3))
+  //          .flatMap(e => rx.lbls(e._2))
 
   object Examples:
     implicit def s2n(str:String): QName = QName(List(str))
-    val a = s2n("a")
+    val a = s2n("s1")
     val s1 = s2n("s1")
     val s2 = s2n("s2")
     val g1 = RxGraph()

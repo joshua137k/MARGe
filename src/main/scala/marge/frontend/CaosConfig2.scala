@@ -28,7 +28,9 @@ object CaosConfig2 extends Configurator[RxGraph]:
     "Vending (max 3prod)" -> "init pay\npay --> select : insert_coin\nselect --> soda : ask_soda\nselect --> beer : ask_beer\nsoda --> pay : get_soda\nbeer --> pay : get_beer\n\nask_soda --! ask_soda : noSoda disabled\nask_beer --! ask_beer : noBeer\nask_soda ->> noSoda"
       -> "Variation of an example of a vending machine, presented in a recently accepted companion paper at FACS 2024. There is a total of 1 beer and 2 sodas available.",
     "Intrusive product" -> "aut s {\n  init 0\n  0 --> 1 : a\n  1 --> 2 : b\n  2 --> 0 : d disabled\n  a --! b\n}\naut w {\n  init 0\n  0 --> 1 : a\n  1 --> 0 : c\n  a --! a : noAs disabled\n  a ->> noAs\n}\n// intrusion\nw.c ->> s.b",
-    "Dynamic SPL" -> "init setup\nsetup --> setup : safe\nsetup --> setup : unsafe\nsetup --> setup : encrypt\nsetup --> setup : dencrypt\nsetup --> ready\nready --> setup\nready --> received : receive\nreceived --> routed_safe : eroute  disabled\nreceived --> routed_unsafe : route\nrouted_safe --> sent : esend       disabled\nrouted_unsafe --> sent : send\nrouted_unsafe --> sent_encrypt : esend disabled\nsent_encrypt --> ready : ready\nsent --> ready : ready\n\nsafe ->> eroute\nsafe --! route\nunsafe --! eroute\nunsafe ->> route\nencrypt --! send\nencrypt ->> esend\ndencrypt ->> send\ndencrypt --! esend"
+    "Conflict" -> "init 0\n0 --> 1: a\n1 --> 2: b\n2 --> 3: c disabled\n\na ->> b: on\non --! b: off"
+      -> "Possible conflict detected in the analysis.",
+    "Dynamic SPL" -> "init setup\nsetup --> setup : Safe\nsetup --> setup : Unsafe\nsetup --> setup : Encrypt\nsetup --> setup : Dencrypt\nsetup --> ready\nready --> setup\nready --> received : Receive\nreceived --> routed_safe : ERoute  disabled\nreceived --> routed_unsafe : Route\nrouted_safe --> sent : ESend       disabled\nrouted_unsafe --> sent : Send\nrouted_unsafe --> sent_encrypt : ESend disabled\nsent_encrypt --> ready : Ready\nsent --> ready : Ready\n\nSafe ->> ERoute\nSafe --! Route\nUnsafe --! ERoute\nUnsafe ->> Route\nEncrypt --! Send\nEncrypt ->> ESend\nDencrypt ->> Send\nDencrypt --! ESend"
       -> "Example of a Dynamic Software Product Line, borrowed from Fig 1 in Maxime Cordy et al. <em>Model Checking Adaptive Software with Featured Transition Systems</em>"
   )
 
@@ -40,11 +42,15 @@ object CaosConfig2 extends Configurator[RxGraph]:
      "Step-by-step (txt)" -> steps((e:RxGraph)=>e, RxSemantics, _.toString, _.show, Text),
 //     "Step-by-step (debug)" -> steps((e:RxGraph)=>e, Program2.RxSemantics, RxGraph.toMermaid, _.show, Text),
      "All steps" -> lts((e:RxGraph)=>e, RxSemantics, x => x.inits.mkString(","), _.toString),
+     "Possible problems" -> view(r=>RxGraph.randomWalk(r)._4 match
+        case Nil => "No deadlocks, unreachable states/edges, nor inconsistencies"
+        case m => m.mkString("\n")
+       , Text),
      "Number of states and edges"
       -> view((e:RxGraph) => {
           val (st,eds,done) = SOS.traverse(RxSemantics,e,2000)
           s"== Reactive Graph ==\nstates: ${
-            (for (src,dests)<-e.edg.toSet; (d,_)<-dests; st <- Set(src,d) yield st).size
+            e.states.size
           }\nsimple edges: ${
             (for (_,dests) <- e.edg yield dests.size).sum
           }\nhyper edges: ${
