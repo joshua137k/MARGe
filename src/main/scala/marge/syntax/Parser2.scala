@@ -58,7 +58,7 @@ object Parser2 :
   /////
 
   def program: P[RxGraph] =
-    sps.with1 *> statements
+    sps.with1 *> statements <* sps
 
   def statements: P[RxGraph] = P.recursive(rx =>
     statement(rx).repSep(sps)

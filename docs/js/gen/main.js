@@ -10026,7 +10026,7 @@ $c_Lmarge_syntax_Parser2$.prototype.alphaDigit__Lcats_parse_Parser = (function()
 });
 $c_Lmarge_syntax_Parser2$.prototype.program__Lcats_parse_Parser = (function() {
   var ev$2 = $n(this.Lmarge_syntax_Parser2$__f_sps);
-  return $m_Lcats_parse_Parser$With1$().$times$greater$extension__Lcats_parse_Parser0__Lcats_parse_Parser__Lcats_parse_Parser(ev$2, this.statements__Lcats_parse_Parser())
+  return $n($m_Lcats_parse_Parser$With1$().$times$greater$extension__Lcats_parse_Parser0__Lcats_parse_Parser__Lcats_parse_Parser(ev$2, this.statements__Lcats_parse_Parser())).$less$times__Lcats_parse_Parser0__Lcats_parse_Parser(this.Lmarge_syntax_Parser2$__f_sps)
 });
 $c_Lmarge_syntax_Parser2$.prototype.statements__Lcats_parse_Parser = (function() {
   return $m_Lcats_parse_Parser$().recursive__F1__Lcats_parse_Parser(new $c_sjsr_AnonFunction1(((rx) => {
