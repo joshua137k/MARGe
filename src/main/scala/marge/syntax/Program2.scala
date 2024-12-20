@@ -62,8 +62,8 @@ object Program2:
     def showSimple: String =
       s"[at] ${inits.mkString(",")} [active] ${showEdges(act)}"
     override def toString: String =
-      s"[init] ${inits.mkString(",")}\n[act]${showEdges(act)}\n[edges]${
-        showEdges(edg)}\n[on]${showEdges(on)}\n[off]${showEdges(off)}"
+      s"[init]  ${inits.mkString(",")}\n[act]   ${showEdges(act)}\n[edges] ${
+        showEdges(edg)}\n[on]    ${showEdges(on)}\n[off]   ${showEdges(off)}"
 
     def states =
       for (src,dests)<-edg.toSet; (d,_)<-dests; st <- Set(src,d) yield st

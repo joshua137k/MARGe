@@ -64,6 +64,8 @@ object CaosConfig2 extends Configurator[RxGraph]:
            else s"States: ${st.size}\nEdges: $eds")
         },
         Text),
+     "mCRL2 experiments"
+     -> view(MCRL2.apply, Text),
 
    )
 
