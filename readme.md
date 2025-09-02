@@ -26,5 +26,8 @@ You need to get the submodules dependencies (CAOS library), and later compile us
 The result will be a JavaScript file that is already being imported by an existing HTML file. 
 
 1. `git submodule update --init`
-2. `sbt fastLinkJS`
+2. `sbt fastLinkJS` obs jdk17
 3. open the file `lib/tool/index.html`
+
+
+my compile `sbt -java-home "C:\Program Files\Java\jdk-17" fastLinkJS`
