@@ -1,0 +1,146 @@
+package marge.frontend
+import marge.syntax.Program2
+import marge.syntax.Program2.{QName, RxGraph}
+import marge.syntax.Parser2
+import marge.backend.RxSemantics
+
+object Main:
+  def main(args: Array[String]): Unit =
+    println("Iniciando testes...")
+
+    // Chame suas funções de teste aqui
+    testParser()
+    testMermaidGeneration()
+    testRxSemantics()
+
+    println("\nTestes concluídos.")
+
+  def testParser(): Unit =
+    println("\n--- Testando o Parser ---")
+    val programString =
+      """
+        init s1
+        s1 --> s2 : lbl1
+        s2 ->> s3 : lbl2
+        lbl1 --x lbl2 : off_lbl1_lbl2
+      """
+    println(s"Programa para parsing:\n$programString")
+    try
+      val graph = Parser2.parseProgram(programString)
+      println("Programa parseado com sucesso:")
+      println(graph.toString)
+
+      val simpleGraph = Parser2.parseProgram(
+        """
+        init myState
+        myState --> nextState: action
+      """
+      )
+      println("\nGrafo simples parseado:")
+      println(simpleGraph.toString)
+
+      // Novo teste com declaração de variável e condição
+      val conditionalGraph = Parser2.parseProgram(
+        """
+          int counter = 0
+          init start
+          start --> middle: step1 [counter < 2]
+          middle --> endN: activateStep2 [counter == 1]
+        """
+      )
+      println("\nGrafo com variável e condição parseado:")
+      println(conditionalGraph.toString)
+
+    catch
+      case e: Exception => println(s"Erro ao parsear: ${e.getMessage}")
+
+  def testMermaidGeneration(): Unit =
+    println("\n--- Testando Geração de Mermaid ---")
+    val graph1 = Program2.Examples.g1
+    println("\nExemplo g1 (Program2.Examples.g1):")
+    println(graph1.toString)
+    println("\nMermaid para g1 (Completo):")
+    println(RxGraph.toMermaid(graph1))
+    println("\nMermaid para g1 (Simples):")
+    println(RxGraph.toMermaidPlain(graph1))
+    println("\n(Copie e cole o código Mermaid em mermaid.live para visualizar)")
+
+    val graphParsed = Parser2.parseProgram(
+      """
+        init start
+        start --> middle: step1
+        middle ->> end: activateStep2
+        step1 --x activateStep2 : deactivateRule
+      """)
+    println("\nMermaid para grafo parseado:")
+    println(RxGraph.toMermaid(graphParsed))
+
+    // Novo teste de Mermaid com condições
+    val conditionalMermaidGraph = Parser2.parseProgram(
+      """
+        int clicks = 0
+        init landing
+        landing --> page1: click [clicks < 3]
+        page1 --> page2: next [clicks == 1]
+      """
+    )
+    println("\nMermaid para grafo com condições:")
+    println(RxGraph.toMermaid(conditionalMermaidGraph))
+
+  def testRxSemantics(): Unit =
+    println("\n--- Testando a Semântica Reativa (RxSemantics) ---")
+
+    val counterGraph = Program2.Examples.counter
+    println("\nExemplo Counter (Program2.Examples.counter):")
+    println(counterGraph.toString)
+
+    println("\nPróximos estados do contador:")
+    var currentState = counterGraph
+    for (i <- 1 to 3)
+      val nextStates = RxSemantics.next(currentState)
+      if nextStates.nonEmpty then
+        val (label, nextGraph) = nextStates.head // Pegamos o primeiro para simplificar
+        println(s"  Passo $i - Transição via '$label':")
+        println(s"    Inits antes: ${currentState.inits.mkString(",")}, Ativos antes: ${currentState.act.mkString(", ")}, Vars antes: ${currentState.val_env.map(kv => s"${kv._1}=${kv._2}").mkString(", ")}")
+        println(s"    Inits depois: ${nextGraph.inits.mkString(",")}, Ativos depois: ${nextGraph.act.mkString(", ")}, Vars depois: ${nextGraph.val_env.map(kv => s"${kv._1}=${kv._2}").mkString(", ")}")
+        currentState = nextGraph
+      else
+        println(s"  Passo $i - Nenhum estado seguinte encontrado. Vars: ${currentState.val_env.map(kv => s"${kv._1}=${kv._2}").mkString(", ")}")
+
+    println("\nTestando nextEdge:")
+    val initialGraph = Parser2.parseProgram(
+      """
+      init s1
+      s1 --> s2: move
+      """
+      )
+    println(s"Grafo inicial para nextEdge:\n${initialGraph.showSimple}")
+    val nextEdges = RxSemantics.nextEdge(initialGraph)
+    nextEdges.foreach { case (edge, newGraph) =>
+      println(s"  Transição: ${Program2.showEdge(edge)}")
+      println(s"    Novo grafo (inits, act, vars): ${newGraph.showSimple}")
+    }
+
+    // Novo teste de semântica com variáveis e condições
+    val conditionalSemanticsGraph = Parser2.parseProgram(
+      """
+        int level = 0
+        init startLevel
+        startLevel --> midLevel: increment [level < 1]
+        midLevel --> endLevel: finish [level == 0]
+      """
+    )
+    println("\nTestando semântica com condição e variáveis:")
+    var currentCondState = conditionalSemanticsGraph
+    println(s"  Estado inicial: ${currentCondState.showSimple}")
+    for (i <- 1 to 3) {
+      val nextStates = RxSemantics.next(currentCondState)
+      if nextStates.nonEmpty then
+        val (label, nextGraph) = nextStates.head
+        println(s"  Passo $i - Transição via '$label':")
+        println(s"    Estado antes: ${currentCondState.showSimple}")
+        println(s"    Estado depois: ${nextGraph.showSimple}")
+        currentCondState = nextGraph
+      else
+        println(s"  Passo $i - Nenhum estado seguinte encontrado. Estado atual: ${currentCondState.showSimple}")
+    }

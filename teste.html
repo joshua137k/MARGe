@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+  <meta charset="utf-8" />
+  <title>Teste Mermaid 9.1.7 + D3 Zoom</title>
+  <style>
+    body { margin: 0; font-family: system-ui, sans-serif; }
+    #id-1996100447Box {
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      background: #0b0f14;
+    }
+    #id-1996100447Box svg { background: #0b0f14; }
+  </style>
+</head>
+<body>
+
+<div id="id-1996100447Box"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/mermaid@9.1.7/dist/mermaid.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  mermaid.mermaidAPI.initialize({
+    startOnLoad: false,
+    securityLevel: 'loose',           
+    theme: 'default',
+    flowchart: { htmlLabels: true }
+  });
+
+  var display = document.getElementById('id-1996100447Box');
+  var text = `
+flowchart LR
+
+
+  t1934553555["step1 (counter < 2)"]
+  t143362062["activateStep2 (counter == 1)"]
+
+  start --- t1934553555
+  t1934553555 --> middle
+  middle --- t143362062
+  t143362062 --> endNode
+
+  style t1934553555 fill:none,stroke:none,stroke-width:0
+  style t143362062 fill:none,stroke:none,stroke-width:0
+  style start fill:#8f7,stroke:#363,stroke-width:4px
+
+  linkStyle 0 stroke:black, stroke-width:2px
+  linkStyle 1 stroke:black, stroke-width:2px
+  linkStyle 2 stroke:black, stroke-width:2px
+  linkStyle 3 stroke:black, stroke-width:2px
+
+  `;
+
+  try {
+    mermaid.parse(text);
+  } catch (e) {
+    console.error('Erro de sintaxe Mermaid:', e?.str || e);
+    display.textContent = 'Erro de sintaxe Mermaid: ' + (e?.str || e);
+    return;
+  }
+
+  mermaid.mermaidAPI.render('id-1996100447Svg', text, function (svgCode) {
+    display.innerHTML = svgCode;
+
+    var svgSel = d3.select("#id-1996100447Box svg");
+    svgSel.html("<g>" + svgSel.html() + "</g>");
+    var inner = svgSel.select("g");
+
+    var vb = svgSel.attr("viewBox");
+    if (!vb) {
+      var w = parseFloat(svgSel.attr("width")) || 1000;
+      var h = parseFloat(svgSel.attr("height")) || 600;
+      svgSel.attr("viewBox", `0 0 ${w} ${h}`);
+    }
+
+    var zoom = d3.zoom().on("zoom", function (event) {
+      inner.attr("transform", event.transform);
+    });
+
+    svgSel.call(zoom);
+  });
+});
+</script>
+</body>
+</html>

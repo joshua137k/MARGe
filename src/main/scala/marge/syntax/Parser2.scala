@@ -3,19 +3,17 @@ package marge.syntax
 import cats.parse.Parser.*
 import cats.parse.{LocationMap, Parser as P, Parser0 as P0}
 import cats.parse.Rfc5234.{alpha, digit, sp}
-import marge.syntax.Program2.{QName, RxGraph}
+import marge.syntax.Program2.{Condition, QName, RxGraph}
 
 import scala.sys.error
 
 object Parser2 :
 
-  // /** Parse a command  */
   def parseProgram(str:String):RxGraph =
     pp(program,str) match
       case Left(e) => error(e)
       case Right(c) => c
 
-  /** Applies a parser to a string, and prettifies the error message */
   def pp[A](parser:P[A], str:String): Either[String,A] =
     parser.parseAll(str) match
       case Left(e) => Left(prettyError(str,e))
@@ -32,30 +30,27 @@ object Parser2 :
     s"${pos}expected: ${err.expected.toList.mkString(", ")}\noffsets: ${
       err.failedAtOffset};${err.offsets.toList.mkString(",")}"
 
-  // Simple parsers for spaces and comments
-  /** Parser for a sequence of spaces or comments */
-  /** Parser for a sequence of spaces or comments *//** Parser for a sequence of spaces or comments */
   private val whitespace: P[Unit] = P.charIn(" \t\r\n").void
-  private val comment: P[Unit] = string("//") *> P.charWhere(_!='\n').rep0.void
+  private val comment: P[Unit] = P.string("//") *> P.charWhere(_!='\n').rep0.void
   private val sps: P0[Unit] = (whitespace | comment).rep0.void
 
-  // Parsing smaller tokens
   def alphaDigit: P[Char] =
     P.charIn('A' to 'Z') | P.charIn('a' to 'z') | P.charIn('0' to '9') | P.charIn('_')
   private def Digit: P[Char] =
-    P.charIn('0' to '9') | P.charIn('.')
+    P.charIn('0' to '9')
   def varName: P[String] =
-    (charIn('a' to 'z') ~ alphaDigit.rep0).string
+    (P.charIn('a' to 'z') ~ alphaDigit.rep0).string
   def procName: P[String] =
-    (charIn('A' to 'Z') ~ alphaDigit.rep0).string
+    (P.charIn('A' to 'Z') ~ alphaDigit.rep0).string
   private def symbols: P[String] =
-  // symbols starting with "--" are meant for syntactic sugar of arrows, and ignored as symbols of terms
-    P.not(string("--")).with1 *>
-      oneOf("+-><!%/*=|&".toList.map(char)).rep.string
+    P.not(P.string("--")).with1 *>
+      P.oneOf("+-><!%/*=|&".toList.map(P.char)).rep.string
 
   import scala.language.postfixOps
 
-  /////
+  def qname: P[QName] =
+    alphaDigit.rep.string.repSep(P.char('.'))
+      .map(l => QName(l.toList))
 
   def program: P[RxGraph] =
     sps.with1 *> statements <* sps
@@ -64,181 +59,68 @@ object Parser2 :
     statement(rx).repSep(sps)
       .map(res => res.toList.fold(RxGraph())(_ ++ _))
   )
+  
   def statement(rx:P[RxGraph]): P[RxGraph] =
-    init | aut(rx) | edge
+    init | aut(rx) | intDeclaration | edge
+
   def init: P[RxGraph] =
-    (string("init") *> sps *> qname) // <* (sps<*char(';')))
+    (P.string("init") *> sps *> qname)
       .map(RxGraph().addInit(_))
+
   def aut(rx:P[RxGraph]): P[RxGraph] =
-    ((string("aut") *> sps *> qname) ~
-      (sps *> char('{') *> sps *> (rx <* sps <* char('}')))
+    ((P.string("aut") *> sps *> qname) ~
+      (sps *> P.char('{') *> sps *> (rx <* sps <* P.char('}')))
     ).map(x => x._1 / x._2)
 
+  def integer: P[Int] = P.charIn('0' to '9').rep(1).string.map(_.toInt)
+  def intDeclaration: P[RxGraph] =
+    (P.string("int") *> sps *> qname ~
+      (sps *> P.char('=') *> sps *> integer)
+    ).map { case (name, value) => RxGraph().addVariable(name, value) }
+
+  def comparisonOp: P[String] = (
+    P.string(">=").as(">=") |
+    P.string("<=").as("<=") |
+    P.string("==").as("==") |
+    P.string("!=").as("!=") |
+    P.string(">").as(">") |
+    P.string("<").as("<")
+  )
+  def intOrQName: P[Either[Int, QName]] =
+    integer.map(Left(_)) | qname.map(Right(_))
+
+  def condition: P[Condition] =
+    (P.char('[') *> sps *> qname ~
+      (sps *> comparisonOp) ~
+      (sps *> intOrQName) <* sps <* P.char(']')
+    ).map { case ((left, op), right) => Condition(left, op, right) }
+
   def edge: P[RxGraph] =
-    (qname ~ // n1
-      arrow.surroundedBy(sps) ~ // n2
-      (qname <* sps) ~ // ar
-      ((char(':') *> sps *> (qname <* sps))).? ~ // mn3
-      string("disabled").? // off
-      //      <* char(';')))
+    (qname ~
+      arrow.surroundedBy(sps) ~
+      (qname <* sps) ~
+      ((P.char(':') *> sps *> (qname <* sps))).? ~
+      condition.? ~
+      P.string("disabled").?
     ).map{
-        case ((((n1,ar),n2),mn3),None) =>
-          ar(n1,n2,mn3.getOrElse(QName(List())))
-        case ((((n1, ar), n2), mn3), Some(_)) =>
-          ar(n1,n2,mn3.getOrElse(QName(List())))
-            .deactivate(n1, n2, mn3.getOrElse(QName(List())))
+        case (((((n1,ar),n2),lblOpt),condOpt),None) =>
+          ar(n1,n2,lblOpt.getOrElse(QName(List())), condOpt)
+        case (((((n1, ar), n2), lblOpt), condOpt), Some(_)) =>
+          ar(n1,n2,lblOpt.getOrElse(QName(List())), condOpt)
+            .deactivate(n1, n2, lblOpt.getOrElse(QName(List())))
     }
 
-  def qname: P[QName] =
-    alphaDigit.rep.string.repSep(char('.'))
-      .map(l => QName(l.toList))
+  def arrow: P[(QName,QName,QName, Option[Condition])=>RxGraph] =
+    P.string("-->").as(RxGraph().addEdge) |
+    P.string("->>").as(RxGraph().addOn) |
+    P.string("--!").as(RxGraph().addOff) |
+    P.string("--x").as(RxGraph().addOff) |
+    P.string("--#--").as((a:QName,b:QName,c:QName, cond: Option[Condition]) => RxGraph()
+      .addOff(a,b,c, cond).addOff(b,a,c, cond)) |
+    P.string("---->").as((a:QName,b:QName,c:QName, cond: Option[Condition]) => RxGraph()
+      .addOn(a,b,c, cond).addOff(b,b,c, cond))
 
-  def arrow: P[(QName,QName,QName)=>RxGraph] =
-    string("-->").as(RxGraph().addEdge) |
-    string("->>").as(RxGraph().addOn) |
-    string("--!").as(RxGraph().addOff) |
-    string("--x").as(RxGraph().addOff) |
-    string("--#--").as((a:QName,b:QName,c:QName) => RxGraph()
-      .addOff(a,b,c).addOff(b,a,c)) |
-    string("---->").as((a:QName,b:QName,c:QName) => RxGraph()
-      .addOn(a,b,c).addOff(b,b,c))
 
-//  private def on:  P[Boolean] = P.string("ON").map( x => true)
-//  private def off: P[Boolean] = P.string("OFF").map( x => false)
-//  private def bullet: P[Boolean] = P.string("Bullet").map(x => true)
-//  private def circ:   P[Boolean] = P.string("Circ").map(x => false)
-//  private def state: P[State] = alphaDigit.rep.string
-//  private def edgeaction: P[Action] = alphaDigit.rep.string
-//  private def edgeweight: P[Weight] = ((char('-').?.with1 ~ digit.rep(1) ~ (char('.').with1 ~ digit.rep(1)).?).string).map(_.toDouble)
-//  private def edgeactive: P[Boolean] = bullet | circ
-//  private def edgefunction: P[Boolean] = on | off
-//  private def div: P[String] = P.string("||").string
-//
-//  private def bullet2: P[Boolean] = P.string("-->").map(x => true)
-//  private def circ2:   P[Boolean] = P.string("-.->").map(x => false)
-//  private def edgeactive2: P[Boolean] = bullet2 | circ2
-//
-//  // Verison with parantesis
-//  private def simpleEdge: P[(SimpleEdge,Boolean)] =
-//    (((((P.char('(') *>
-//      state.surroundedBy(sps) <* P.string(",")) ~
-//      state.surroundedBy(sps) <* P.string(",")) ~
-//      edgeaction.surroundedBy(sps) <* P.char(',')) ~
-//      edgeweight.surroundedBy(sps) <* P.char(',')) ~
-//      edgeactive.surroundedBy(sps) <* P.char(')'))
-//      .map { case (((((from,to),action),w),active)) =>
-//        (SimpleEdge(from, to, action, w),active)}
-//
-//  // verison a --> b by a,0,
-//  private def simpleEdge2: P[(SimpleEdge,Boolean)] =
-//    (((( state.surroundedBy(sps) ~
-//      edgeactive2.surroundedBy(sps)) ~
-//      state.surroundedBy(sps) <* P.string("by")) ~
-//      edgeaction.surroundedBy(sps) <* P.char(',')) ~
-//      edgeweight.surroundedBy(sps))
-//      .map { case (((((from,active),to),action),w)) =>
-//        (SimpleEdge(from, to, action, w),active)}
-//
-//  //verison without weight
-//  private def simpleEdge_withoutWeight: P[(SimpleEdge,Boolean)] =
-//    ((( state.surroundedBy(sps) ~
-//      edgeactive2.surroundedBy(sps)) ~
-//      state.surroundedBy(sps) <* P.string("by")) ~
-//      edgeaction.surroundedBy(sps))
-//      .map { case ((((from,active),to),action)) =>
-//        (SimpleEdge(from, to, action, 0),active)}
-//
-//  private def simpleEdgeN: P[(SimpleEdge,Boolean)] =
-//    (((((P.char('(') *>
-//      state.surroundedBy(sps) <* P.string(",")) ~
-//      state.surroundedBy(sps) <* P.string(",")) ~
-//      edgeaction.surroundedBy(sps) <* P.char(',')) ~
-//      edgeweight.surroundedBy(sps) <* P.char(')')))
-//      .map { case (((from,to),action),w) => (SimpleEdge(from, to, action, w), true)}
-//
-//  //version without weight
-//  private def simpleEdgeN_withoutWeight: P[(SimpleEdge,Boolean)] =
-//    (((P.char('(') *>
-//      state.surroundedBy(sps) <* P.string(",")) ~
-//      state.surroundedBy(sps) <* P.string(",")) ~
-//      edgeaction.surroundedBy(sps) <* P.char(')'))
-//      .map { case ((from,to),action) => (SimpleEdge(from, to, action, 0), true)}
-//
-//  private def edge: P[(Edge,Boolean)] =  P.defer(simpleEdgeN.backtrack | hyperEdge)
-//  //version without weight
-//  private def edge_withoutWeight: P[(Edge,Boolean)] =  P.defer(simpleEdgeN_withoutWeight.backtrack | hyperEdge_withoutWeight)
-//
-//  private def hyperEdge: P[(HyperEdge,Boolean)] =
-//    (((((P.char('(') *> edge.surroundedBy(sps) <* P.string(",")) ~
-//      (edge.surroundedBy(sps)) <* P.char(',')) ~
-//      edgeweight.surroundedBy(sps) <* P.char(',')) ~
-//      edgeactive.surroundedBy(sps) <* P.char(',')) ~
-//      edgefunction.surroundedBy(sps) <* P.char(')'))
-//      .map{ case (((((from,to),w),active),function)) =>
-//        (HyperEdge(from._1, to._1, w, function),active)
-//      }
-//
-//  //version without weight
-//  private def hyperEdge_withoutWeight: P[(HyperEdge,Boolean)] =
-//    ((((P.char('(') *> edge_withoutWeight.surroundedBy(sps) <* P.string(",")) ~
-//      (edge_withoutWeight.surroundedBy(sps)) <* P.char(',')) ~
-//      edgeactive.surroundedBy(sps) <* P.char(',')) ~
-//      edgefunction.surroundedBy(sps) <* P.char(')'))
-//      .map{ case ((((from,to),active),function)) =>
-//        (HyperEdge(from._1, to._1, 0, function),active)
-//      }
-//
-//  private def level0: P[(Map[State, Set[SimpleEdge]], Set[Edge])] =
-//    (((P.string("l0") *> P.char('=').surroundedBy(sps)) *> P.char('{').surroundedBy(sps)) *>
-//      (simpleEdge_withoutWeight.repSep(char(',').surroundedBy(sps))).surroundedBy(sps) <* P.char('}').surroundedBy(sps))
-//      .map(edges => {
-//        val edgesMap = edges.collect { case (edge, _) => edge.from -> edge }.groupBy(_._1).view.mapValues(_.map(_._2).toSet).toMap
-//        val activeEdgesSet:Set[Edge] = edges.collect { case (edge, true) => edge }.toSet
-//        (edgesMap, activeEdgesSet)
-//      })
-//
-//  private def levelN: P[(Map[Edge,Set[Edge]],Set[Edge])] =
-//    (((P.string("ln") *> P.char('=').surroundedBy(sps)) *> P.char('{').surroundedBy(sps)) *>
-//      (hyperEdge_withoutWeight.repSep0(char(',').surroundedBy(sps))).surroundedBy(sps) <* P.char('}').surroundedBy(sps))
-//      .map(edges => {
-//        val edgesMap:Map[Edge,Set[Edge]] = edges.collect { case (edge, _) => edge.from -> edge }.groupBy(_._1).view.mapValues(_.map(_._2).toSet).toMap
-//        val activeEdgesSet:Set[Edge] = edges.collect { case (edge, true) => edge }.toSet
-//        (edgesMap, activeEdgesSet)
-//      })
-//  private def levelNI: P[(Map[Edge,Set[Edge]],Set[Edge])] =
-//    (((P.string("lnI") *> P.char('=').surroundedBy(sps)) *> P.char('{').surroundedBy(sps)) *>
-//      (hyperEdge_withoutWeight.repSep0(char(',').surroundedBy(sps))).surroundedBy(sps) <* P.char('}').surroundedBy(sps))
-//      .map(edges => {
-//        val edgesMap:Map[Edge,Set[Edge]] = edges.collect { case (edge, _) => edge.from -> edge }.groupBy(_._1).view.mapValues(_.map(_._2).toSet).toMap
-//        val activeEdgesSet:Set[Edge] = edges.collect { case (edge, true) => edge }.toSet
-//        (edgesMap, activeEdgesSet)
-//      })
-//
-//  private def init: P[State] = ((P.string("init") *> P.char('=').surroundedBy(sps)) *> state).map(x => String(x))
-//
-//  private def oneProgram: P[RxGr] =
-//    (( init.surroundedBy(sps) <* P.char(';').surroundedBy(sps)) ~
-//      (level0.surroundedBy(sps) <* P.char(';').surroundedBy(sps)) ~
-//      levelN.surroundedBy(sps))
-//      .map{ case (((init,se),he)) =>
-//        RxGr(se._1, he._1, init, se._2 ++ he._2)
-//      }
-//
-//  // private def program: P[System] =
-//  //   ((oneProgram.surroundedBy(sps)) ~
-//  //   ((char('~').surroundedBy(sps) *> oneProgram.surroundedBy(sps)).?))
-//  //     .map((x,y) => System(x,y))
-//
-//  private def program: P[System] =
-//    ((oneProgram.surroundedBy(sps)) ~
-//      ((div.surroundedBy(sps) *> oneProgram.surroundedBy(sps)).?) ~
-//      ((div.surroundedBy(sps) *> levelNI.surroundedBy(sps)).?))
-//      .map{case (((x,y),z)) => System(x,y,(z.map(_._1).getOrElse(Map.empty),z.map(_._2).getOrElse(Set.empty)))}
-//
-
-  //////////////////////////////
-  // Examples and experiments //
-  //////////////////////////////
 
   object Examples:
     val ex1 =

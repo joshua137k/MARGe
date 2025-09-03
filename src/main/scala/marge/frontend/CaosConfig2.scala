@@ -18,6 +18,8 @@ object CaosConfig2 extends Configurator[RxGraph]:
 
   /** Examples of programs that the user can choose from. The first is the default one. */
   val examples = List(
+    "Joshua" -> "int counter = 0\ninit start\nstart --> middle: step1 [counter < 2]\nmiddle --> endN: activateStep2 [counter == 1]"
+      -> "Basic example",
     "Simple" -> "init s0\ns0 --> s1: a\ns1 --> s0: b\na  --! a: offA"
       -> "Basic example",
     "Counter" -> "init s0\ns0 --> s0 : act\nact --! act : offAct disabled\nact ->> offAct : on1 disabled\nact ->> on1"
