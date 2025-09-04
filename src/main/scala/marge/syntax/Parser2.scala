@@ -34,6 +34,8 @@ object Parser2 :
   private val comment: P[Unit] = P.string("//") *> P.charWhere(_!='\n').rep0.void
   private val sps: P0[Unit] = (whitespace | comment).rep0.void
 
+  def getSps: P0[Unit] = sps
+
   def alphaDigit: P[Char] =
     P.charIn('A' to 'Z') | P.charIn('a' to 'z') | P.charIn('0' to '9') | P.charIn('_')
   private def Digit: P[Char] =

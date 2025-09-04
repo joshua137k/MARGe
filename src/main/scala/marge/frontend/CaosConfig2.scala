@@ -9,6 +9,16 @@ import marge.syntax.{Parser2, Program2}
 import marge.syntax.Program2.RxGraph
 import marge.backend.RxSemantics
 
+import caos.frontend.widgets.WidgetInfo.Custom 
+import scala.scalajs.js
+import org.scalajs.dom 
+import org.scalajs.dom.html
+
+
+import marge.syntax.PdlFormula
+import marge.syntax.PdlParser
+import marge.backend.PdlEvaluator
+
 /** Object used to configure which analysis appear in the browser */
 object CaosConfig2 extends Configurator[RxGraph]:
   val name = "Animator of Labelled Reactive Graphs"
@@ -16,31 +26,80 @@ object CaosConfig2 extends Configurator[RxGraph]:
 
   val parser = marge.syntax.Parser2.parseProgram
 
+
+  var pdlInputElem: Option[html.Input] = None
+
+  def getPdlInputContent(): String =
+    pdlInputElem.map(_.value.replaceAll("\\s", "")).getOrElse("")
+
   /** Examples of programs that the user can choose from. The first is the default one. */
   val examples = List(
     "Joshua" -> "int counter = 0\ninit start\nstart --> middle: step1 \\counter+=1 [counter < 2]\nmiddle --> endN: activateStep2 [counter == 1]"
       -> "Basic example with counter updates and conditions",
     "Simple" -> "init s0\ns0 --> s1: a\ns1 --> s0: b\na  --! a: offA"
       -> "Basic example",
-    "Counter" -> "init s0\ns0 --> s0 : act\nact --! act : offAct disabled\nact ->> offAct : on1 disabled\nact ->> on1"
+    "Counter" -> "init s0\ns0 --> s0: act\nact --! act: offAct disabled\nact ->> offAct: on1 disabled\nact ->> on1"
       -> "turns off a transition after 3 times.",
-    "Penguim" -> "init Son_of_Tweetie\nSon_of_Tweetie --> Special_Penguin\nSpecial_Penguin --> Penguin : Penguim\nPenguin --> Bird : Bird\nBird --> Does_Fly: Fly\n\nBird --! Fly : noFly\nPenguim --! noFly"
+    "Penguim" -> "init Son_of_Tweetie\nSon_of_Tweetie --> Special_Penguin\nSpecial_Penguin --> Penguin: Penguim\nPenguin --> Bird: Bird\nBird --> Does_Fly: Fly\n\nBird --! Fly: noFly\nPenguim --! noFly"
       -> "Figure 7.4 in Dov M Gabbay, Cognitive Technologies Reactive Kripke Semantics",
-    "Vending (max 1eur)" -> "init Insert\nInsert --> Coffee : 50ct\nInsert --> Chocolate : 1eur\nCoffee --> Insert : Get_coffee\nChocolate --> Insert : Get_choc\n\n1eur --! 50ct\n1eur --! 1eur\n50ct --! 50ct : last50ct disabled\n50ct --! 1eur\n50ct ->> last50ct"
+    "Vending (max 1eur)" -> "init Insert\nInsert --> Coffee: 50ct\nInsert --> Chocolate: 1eur\nCoffee --> Insert: Get_coffee\nChocolate --> Insert: Get_choc\n\n1eur --! 50ct\n1eur --! 1eur\n50ct --! 50ct: last50ct disabled\n50ct --! 1eur\n50ct ->> last50ct"
       -> "Example of a vending machine, presented in a recently accepted companion paper at FACS 2024. There is a total of 1eur to be spent, and some transitions are deactivated when there is not enough money.",
-    "Vending (max 3prod)" -> "init pay\npay --> select : insert_coin\nselect --> soda : ask_soda\nselect --> beer : ask_beer\nsoda --> pay : get_soda\nbeer --> pay : get_beer\n\nask_soda --! ask_soda : noSoda disabled\nask_beer --! ask_beer : noBeer\nask_soda ->> noSoda"
+    "Vending (max 3prod)" -> "init pay\npay --> select: insert_coin\nselect --> soda: ask_soda\nselect --> beer: ask_beer\nsoda --> pay: get_soda\nbeer --> pay: get_beer\n\nask_soda --! ask_soda: noSoda disabled\nask_beer --! ask_beer: noBeer\nask_soda ->> noSoda"
       -> "Variation of an example of a vending machine, presented in a recently accepted companion paper at FACS 2024. There is a total of 1 beer and 2 sodas available.",
-    "Intrusive product" -> "aut s {\n  init 0\n  0 --> 1 : a\n  1 --> 2 : b\n  2 --> 0 : d disabled\n  a --! b\n}\naut w {\n  init 0\n  0 --> 1 : a\n  1 --> 0 : c\n  a --! a : noAs disabled\n  a ->> noAs\n}\n// intrusion\nw.c ->> s.b",
+    "Intrusive product" -> "aut s {\n  init 0\n  0 --> 1: a\n  1 --> 2: b\n  2 --> 0: d disabled\n  a --! b\n}\naut w {\n  init 0\n  0 --> 1: a\n  1 --> 0: c\n  a --! a: noAs disabled\n  a ->> noAs\n}\n// intrusion\nw.c ->> s.b",
     "Conflict" -> "init 0\n0 --> 1: a\n1 --> 2: b\n2 --> 3: c disabled\n\na ->> b: on\non --! b: off"
       -> "Possible conflict detected in the analysis.",
     "Dependencies" -> "aut A {\n  init 0\n  0 --> 1: look\n  1 --> 0: restart\n}\n\naut B {\n  init 0\n  0 --> 1: on\n  1 --> 2: goLeft disabled\n  1 --> 2: goRight disabled\n  goLeft --#-- goRight\n  2 --> 0: off\n}\n\n// dependencies\nA.look ----> B.goLeft\nA.look ----> B.goRight"
       -> "Experimental syntax to describe dependencies, currently only as syntactic sugar.",
-    "Dynamic SPL" -> "init setup\nsetup --> setup : Safe\nsetup --> setup : Unsafe\nsetup --> setup : Encrypt\nsetup --> setup : Dencrypt\nsetup --> ready\nready --> setup\nready --> received : Receive\nreceived --> routed_safe : ERoute  disabled\nreceived --> routed_unsafe : Route\nrouted_safe --> sent : ESend       disabled\nrouted_unsafe --> sent : Send\nrouted_unsafe --> sent_encrypt : ESend disabled\nsent_encrypt --> ready : Ready\nsent --> ready : Ready\n\nSafe ->> ERoute\nSafe --! Route\nUnsafe --! ERoute\nUnsafe ->> Route\nEncrypt --! Send\nEncrypt ->> ESend\nDencrypt ->> Send\nDencrypt --! ESend"
+    "Dynamic SPL" -> "init setup\nsetup --> setup: Safe\nsetup --> setup: Unsafe\nsetup --> setup: Encrypt\nsetup --> setup: Dencrypt\nsetup --> ready\nready --> setup\nready --> received: Receive\nreceived --> routed_safe: ERoute  disabled\nreceived --> routed_unsafe: Route\nrouted_safe --> sent: ESend       disabled\nrouted_unsafe --> sent: Send\nrouted_unsafe --> sent_encrypt: ESend disabled\nsent_encrypt --> ready: Ready\nsent --> ready: Ready\n\nSafe ->> ERoute\nSafe --! Route\nUnsafe --! ERoute\nUnsafe ->> Route\nEncrypt --! Send\nEncrypt ->> ESend\nDencrypt ->> Send\nDencrypt --! ESend"
       -> "Example of a Dynamic Software Product Line, borrowed from Fig 1 in Maxime Cordy et al. <em>Model Checking Adaptive Software with Featured Transition Systems</em>"
   )
 
    /** Description of the widgets that appear in the dashboard. */
    val widgets = List(
+    "PDL Input" -> Custom("pdlInputArea", (stx: RxGraph) => {
+       val divId = "pdlInputArea"
+       val inputId = "pdlInputTextarea"
+       val currentDiv = dom.document.getElementById(divId)
+
+       if (pdlInputElem.isEmpty) {
+         currentDiv.innerHTML = "" 
+         val inputElement = dom.document.createElement("input").asInstanceOf[html.Input]
+         inputElement.id = inputId
+         inputElement.`type` = "text"
+         inputElement.style.width = "100%"
+         inputElement.style.height = "24px" 
+         inputElement.value = "s0 => <a>s1" 
+
+         
+         currentDiv.appendChild(inputElement)
+         pdlInputElem = Some(inputElement)
+       }
+       
+     }, buttons = List()).moveTo(1), 
+
+
+
+
+    "PDL Evaluation Result" -> view((rx: RxGraph) => {
+      val pdlString = getPdlInputContent()
+      if (pdlString.trim.isEmpty) {
+        "Enter a PDL formula in the 'PDL Input' box."
+      } else {
+        rx.inits.headOption match {
+          case None => "Error: The reactive graph has no initial state."
+          case Some(initialState) =>
+            try {
+              val formula = PdlParser.parsePdlFormula(pdlString)
+              val result = PdlEvaluator.evaluateFormula(initialState, formula, rx)
+              s"Evaluating from state: ${initialState.show}\nFormula: ${formula.toString}\nResult: $result"
+            } catch {
+              case e: Throwable => s"Error: ${e.getMessage}"
+            }
+        }
+      }
+    }, Text).moveTo(1),
+     
      "View State" -> view[RxGraph](_.toString, Text),
      "Step-by-step" -> steps((e:RxGraph)=>e, RxSemantics, RxGraph.toMermaid, _.show, Mermaid).expand,
      "Step-by-step (simpler)" -> steps((e:RxGraph)=>e, RxSemantics, RxGraph.toMermaidPlain, _.show, Mermaid).expand,
