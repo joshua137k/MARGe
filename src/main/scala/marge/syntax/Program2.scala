@@ -39,6 +39,11 @@ object Program2:
                 }
               )
             }
+          },
+          rx.edgeUpdates.map { case (edge, updOpt) => 
+            (this/edge._1, this/edge._2, this/edge._3) -> updOpt.map { u =>
+              u.copy(variable = this/u.variable)
+            }
           }
         )
 
@@ -65,6 +70,10 @@ object Program2:
     }
   }
 
+  case class CounterUpdate(variable: QName, op: String, value: Int) {
+    override def toString = s"\\${variable} ${op} ${value}"
+  }
+
   /**
    * Reactive graph.
    * Each edge is indentified by a triple (from,to,lbl).
@@ -83,37 +92,44 @@ object Program2:
                      inits: Set[QName],
                      act: Edges,
                      val_env: Map[QName, Int], //  ambiente de valores para variáveis
-                     edgeConditions: Map[Edge, Option[Condition]] //  condições associadas a arestas
+                     edgeConditions: Map[Edge, Option[Condition]], //  condições associadas a arestas
+                     edgeUpdates: Map[Edge, Option[CounterUpdate]] 
                     ):
 
     def showSimple: String =
-      s"[at] ${inits.mkString(",")}${if val_env.nonEmpty then s" [vars] ${val_env.map(kv => s"${kv._1}=${kv._2}").mkString(", ")}" else ""} [active] ${showEdges(act)}"
+      s"[at] ${inits.mkString(",")}${if val_env.nonEmpty then s" [vars] ${val_env.map(kv => s"${kv._1}=${kv._2}").mkString(", ")}" else ""} [active] ${showEdges(act)}" +
+        s"${if edgeUpdates.nonEmpty then s" [upd] ${edgeUpdates.filter(_._2.isDefined).map(kv => s"${showEdge(kv._1)} -> ${kv._2.get}").mkString(", ")}" else ""}" // UPDATED
+
     override def toString: String =
       s"[init]  ${inits.mkString(",")}\n[vars]  ${val_env.map(kv => s"${kv._1}=${kv._2}").mkString(", ")}\n[act]   ${showEdges(act)}\n[edges] ${
         showEdges(edg)}\n[on]    ${showEdges(on)}\n[off]   ${showEdges(off)}\n[conds] ${
-        edgeConditions.filter(_._2.isDefined).map(kv => s"${showEdge(kv._1)} -> ${kv._2.get}").mkString(", ")}"
+        edgeConditions.filter(_._2.isDefined).map(kv => s"${showEdge(kv._1)} -> ${kv._2.get}").mkString(", ")}\n[upd]   ${
+        edgeUpdates.filter(_._2.isDefined).map(kv => s"${showEdge(kv._1)} -> ${kv._2.get}").mkString(", ")}" // UPDATED
 
     def states =
       for (src,dests)<-edg.toSet; (d,_)<-dests; st <- Set(src,d) yield st
 
-    // Métodos para aceitar Option[Condition]
-    def addEdge(s1:QName,s2:QName,l:QName, cond: Option[Condition] = None) =
+    // Métodos para aceitar Option[Condition] e Option[CounterUpdate]
+    def addEdge(s1:QName,s2:QName,l:QName, cond: Option[Condition] = None, upd: Option[CounterUpdate] = None) = 
       this.copy(edg = add(s1->(s2,l),edg),
         lbls = add(l->(s1,s2,l),lbls),
         act = act+((s1,s2,l)),
-        edgeConditions = edgeConditions + (((s1,s2,l) -> cond)))
+        edgeConditions = edgeConditions + (((s1,s2,l) -> cond)),
+        edgeUpdates = edgeUpdates + (((s1,s2,l) -> upd))) 
 
-    def addOn(s1:QName,s2:QName,l:QName, cond: Option[Condition] = None) =
+    def addOn(s1:QName,s2:QName,l:QName, cond: Option[Condition] = None, upd: Option[CounterUpdate] = None) = 
       this.copy(on  = add(s1->(s2,l),on),
         lbls = add(l->(s1,s2,l),lbls),
         act = act+((s1,s2,l)),
-        edgeConditions = edgeConditions + (((s1,s2,l) -> cond)))
+        edgeConditions = edgeConditions + (((s1,s2,l) -> cond)),
+        edgeUpdates = edgeUpdates + (((s1,s2,l) -> upd))) 
 
-    def addOff(s1:QName,s2:QName,l:QName, cond: Option[Condition] = None) =
+    def addOff(s1:QName,s2:QName,l:QName, cond: Option[Condition] = None, upd: Option[CounterUpdate] = None) = 
       this.copy(off = add(s1->(s2,l),off),
         lbls = add(l->(s1,s2,l),lbls),
         act = act+((s1,s2,l)),
-        edgeConditions = edgeConditions + (((s1,s2,l) -> cond)))
+        edgeConditions = edgeConditions + (((s1,s2,l) -> cond)),
+        edgeUpdates = edgeUpdates + (((s1,s2,l) -> upd))) 
 
     def deactivate(l1:QName,l2:QName,l3:QName) =
       this.copy(act = act-((l1,l2,l3)))
@@ -127,7 +143,8 @@ object Program2:
         join(edg,r.edg),join(on,r.on),join(off,r.off),
         join(lbls,r.lbls),inits++r.inits,act++r.act,
         val_env ++ r.val_env, // Mescla ambientes de variáveis
-        edgeConditions ++ r.edgeConditions // Mescla condições de arestas
+        edgeConditions ++ r.edgeConditions, // Mescla condições de arestas
+        edgeUpdates ++ r.edgeUpdates // Mescla atualizações de arestas
       )
 
 
@@ -135,7 +152,8 @@ object Program2:
     def apply(): RxGraph = RxGraph(
       Map().withDefaultValue(Set()),Map().withDefaultValue(Set()),
       Map().withDefaultValue(Set()),Map().withDefaultValue(Set()),Set(),Set(),
-      Map(), Map().withDefaultValue(None)) 
+      Map(), Map().withDefaultValue(None), Map().withDefaultValue(None)) 
+
 
     /** Generates a mermaid graph with all edges */
     def toMermaid(rx: RxGraph): String =
@@ -175,14 +193,12 @@ object Program2:
         val line = if rx.act(edge) then "---" else "-.-"
 
         val conditionRawText = if withConditions then rx.edgeConditions.getOrElse(edge, None).map(_.toMermaidString).getOrElse("") else ""
-        val conditionPart = if conditionRawText.nonEmpty then s"($conditionRawText)" else ""
+        val updateRawText = if withConditions then rx.edgeUpdates.getOrElse(edge, None).map(_.toString).getOrElse("") else "" 
+        
         val qNameLabel = if c.n.nonEmpty then c.toString else ""
-        val combinedLabelText = (qNameLabel, conditionPart) match {
-          case (ql, cp) if ql.nonEmpty && cp.nonEmpty => s"$ql $cp"
-          case (ql, _) if ql.nonEmpty => ql
-          case (_, cp) if cp.nonEmpty => cp
-          case _ => ""
-        }
+        
+        val combinedLabelParts = List(qNameLabel, updateRawText, conditionRawText).filter(_.nonEmpty) 
+        val combinedLabelText = combinedLabelParts.mkString(" ") 
 
         if simple then
           // Modo simples: start ---> |label| end

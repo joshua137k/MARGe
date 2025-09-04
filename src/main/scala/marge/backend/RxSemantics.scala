@@ -1,6 +1,6 @@
 package marge.backend
 
-import marge.syntax.Program2.{Condition, Edge, Edges, QName, RxGraph}
+import marge.syntax.Program2.{Condition,CounterUpdate, Edge, Edges, QName, RxGraph}
 import caos.sos.SOS
 
 import scala.annotation.tailrec
@@ -26,7 +26,6 @@ object RxSemantics extends SOS[QName,RxGraph] {
     (frome.filter(e => rx.on(e._1) contains (e._2 -> e._3)).flatMap(e => rx.lbls(e._2)),
       frome.filter(e => rx.off(e._1) contains (e._2 -> e._3)).flatMap(e => rx.lbls(e._2)))
 
-  // Nova função para avaliar a condição
   private def evalCondition(condition: Condition, env: Map[QName, Int]): Boolean =
     val leftVal = env.getOrElse(condition.left, 0) // Valor padrão 0 se a variável não for encontrada
     val rightVal = condition.right match
@@ -57,7 +56,21 @@ object RxSemantics extends SOS[QName,RxGraph] {
       val (toAct, toDeact) = toOnOff(edge, rx)
       val newAct = (rx.act ++ toAct) -- toDeact // biased to deactivation
       val newInits = (rx.inits - st) + st2
-      lbl -> rx.copy(inits = newInits, act = newAct)
+
+      // Apply counter update if present
+      var updatedValEnv = rx.val_env // Start with current environment
+      rx.edgeUpdates.getOrElse(edge, None) match { // Check for update associated with this specific edge
+        case Some(CounterUpdate(variable, op, value)) =>
+          val currentVal = updatedValEnv.getOrElse(variable, 0) // [1], [2], [3], [4], [5]
+          op match {
+            case "+=" => updatedValEnv = updatedValEnv + (variable -> (currentVal + value))
+            case "-=" => updatedValEnv = updatedValEnv + (variable -> (currentVal - value))
+            case _ => // Should not happen with current parser, but defensive programming
+          }
+        case None => // No counter update for this edge
+      }
+
+      lbl -> rx.copy(inits = newInits, act = newAct, val_env = updatedValEnv) 
 
   /** Similar to `next`, but include the full transition instead of only the action name */
   def nextEdge(rx: RxGraph): Set[(Edge, RxGraph)] =
@@ -74,5 +87,19 @@ object RxSemantics extends SOS[QName,RxGraph] {
       val (toAct, toDeact) = toOnOff(edge, rx)
       val newAct = (rx.act ++ toAct) -- toDeact // biased to deactivation
       val newInits = (rx.inits - st) + st2
-      (st, st2, lbl) -> rx.copy(inits = newInits, act = newAct)
+
+      // Apply counter update if present
+      var updatedValEnv = rx.val_env // Start with current environment
+      rx.edgeUpdates.getOrElse(edge, None) match { // Check for update associated with this specific edge
+        case Some(CounterUpdate(variable, op, value)) =>
+          val currentVal = updatedValEnv.getOrElse(variable, 0) // [1], [2], [3], [4], [5]
+          op match {
+            case "+=" => updatedValEnv = updatedValEnv + (variable -> (currentVal + value))
+            case "-=" => updatedValEnv = updatedValEnv + (variable -> (currentVal - value))
+            case _ => // Should not happen with current parser, but defensive programming
+          }
+        case None => // No counter update for this edge
+      }
+
+      (st, st2, lbl) -> rx.copy(inits = newInits, act = newAct, val_env = updatedValEnv) // UPDATED
 }

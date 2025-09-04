@@ -3,7 +3,7 @@ package marge.syntax
 import cats.parse.Parser.*
 import cats.parse.{LocationMap, Parser as P, Parser0 as P0}
 import cats.parse.Rfc5234.{alpha, digit, sp}
-import marge.syntax.Program2.{Condition, QName, RxGraph}
+import marge.syntax.Program2.{Condition, CounterUpdate, QName, RxGraph}
 
 import scala.sys.error
 
@@ -94,31 +94,57 @@ object Parser2 :
       (sps *> comparisonOp) ~
       (sps *> intOrQName) <* sps <* P.char(']')
     ).map { case ((left, op), right) => Condition(left, op, right) }
+  
+  def counterOp: P[String] = P.string("+=").as("+=") | P.string("-=").as("-=")
+
+  def counterUpdate: P[CounterUpdate] =
+    (P.char('\\') *> sps *> qname ~ (sps *> counterOp) ~ (sps *> integer))
+      .map { case ((variable, op), value) => CounterUpdate(variable, op, value) }
 
   def edge: P[RxGraph] =
-    (qname ~
-      arrow.surroundedBy(sps) ~
-      (qname <* sps) ~
-      ((P.char(':') *> sps *> (qname <* sps))).? ~
-      condition.? ~
-      P.string("disabled").?
-    ).map{
-        case (((((n1,ar),n2),lblOpt),condOpt),None) =>
-          ar(n1,n2,lblOpt.getOrElse(QName(List())), condOpt)
-        case (((((n1, ar), n2), lblOpt), condOpt), Some(_)) =>
-          ar(n1,n2,lblOpt.getOrElse(QName(List())), condOpt)
-            .deactivate(n1, n2, lblOpt.getOrElse(QName(List())))
+    (qname ~ // (1) from state
+      arrow.surroundedBy(sps) ~ // (2) arrow type
+      qname // (3) to state (não consume o espaço aqui, os opcionais farão isso)
+    ).flatMap { case ((n1, arFunc), n2) =>
+      // Define os parsers opcionais para os sufixos.
+      // Cada um é um Optional[Parser], e o encadeamento com `sps *>` garantirá
+      // que o espaço é consumido *antes* de cada elemento opcional, se presente.
+      val labelP = (P.char(':') *> sps *> qname).?
+      val updateP = counterUpdate.? 
+      val conditionP = condition.?  
+      val disabledP = P.string("disabled").? 
+
+      // Encadeia os opcionais, com `sps *>` antes de cada um na sequência,
+      // para consumir os espaços *entre* eles.
+      (labelP ~
+        (sps *> updateP).? ~       // Tenta 'sps' e 'updateP', resultando em Option[Option[CounterUpdate]]
+        (sps *> conditionP).? ~    // Tenta 'sps' e 'conditionP', resultando em Option[Option[Condition]]
+        (sps *> disabledP).?       // Tenta 'sps' e 'disabledP', resultando em Option[Option[String]]
+      ).map {
+        // Desestruturação com tratamento para Options aninhados
+        case (((lblOpt, updOptOpt), condOptOpt), disabledOptOpt) =>
+          val label = lblOpt.getOrElse(QName(List()))
+          val upd = updOptOpt.flatten    // Extrai o Option[CounterUpdate]
+          val cond = condOptOpt.flatten  // Extrai o Option[Condition]
+          val disabled = disabledOptOpt.flatten // Extrai o Option[String]
+
+          val baseGraph = arFunc(n1, n2, label, cond, upd)
+          disabled match {
+            case Some(_) => baseGraph.deactivate(n1, n2, label)
+            case None => baseGraph
+          }
+      }
     }
 
-  def arrow: P[(QName,QName,QName, Option[Condition])=>RxGraph] =
+  def arrow: P[(QName,QName,QName, Option[Condition], Option[CounterUpdate])=>RxGraph] = 
     P.string("-->").as(RxGraph().addEdge) |
     P.string("->>").as(RxGraph().addOn) |
     P.string("--!").as(RxGraph().addOff) |
     P.string("--x").as(RxGraph().addOff) |
-    P.string("--#--").as((a:QName,b:QName,c:QName, cond: Option[Condition]) => RxGraph()
-      .addOff(a,b,c, cond).addOff(b,a,c, cond)) |
-    P.string("---->").as((a:QName,b:QName,c:QName, cond: Option[Condition]) => RxGraph()
-      .addOn(a,b,c, cond).addOff(b,b,c, cond))
+    P.string("--#--").as((a:QName,b:QName,c:QName, cond: Option[Condition], upd: Option[CounterUpdate]) => RxGraph()
+      .addOff(a,b,c, cond, upd).addOff(b,a,c, cond, upd)) | 
+    P.string("---->").as((a:QName,b:QName,c:QName, cond: Option[Condition], upd: Option[CounterUpdate]) => RxGraph()
+      .addOn(a,b,c, cond, upd).addOff(b,b,c, cond, upd)) 
 
 
 
