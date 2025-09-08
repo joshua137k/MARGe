@@ -4,7 +4,7 @@ import marge.backend.RxSemantics
 import marge.syntax.Program2.EdgeMap
 
 import scala.annotation.tailrec
-
+import scala.scalajs.js.Dynamic.global
 object Program2:
 
   type Rel[A,B] = Map[A,Set[B]]
@@ -159,12 +159,23 @@ object Program2:
     def toMermaid(rx: RxGraph): String =
       var i = -1
       def fresh(): Int = {i += 1; i}
+      /*global.console.log(s"flowchart LR\n${
+        drawEdges(rx.edg, rx, fresh, ">", "stroke:black, stroke-width:2px",(x,y) => Set(x.toString), withConditions = true)}${
+        drawEdges(rx.on, rx, fresh, ">", "stroke:blue, stroke-width:3px",getLabel, withConditions = true)}${
+        drawEdges(rx.off,rx, fresh, "x", "stroke:red, stroke-width:3px",getLabel, withConditions = true)}${
+        (for s<-rx.inits yield s"  style $s fill:#8f7,stroke:#363,stroke-width:4px\n").mkString
+      }");
+
+
+      i = -1*/
+
       s"flowchart LR\n${
         drawEdges(rx.edg, rx, fresh, ">", "stroke:black, stroke-width:2px",(x,y) => Set(x.toString), withConditions = true)}${
         drawEdges(rx.on, rx, fresh, ">", "stroke:blue, stroke-width:3px",getLabel, withConditions = true)}${
         drawEdges(rx.off,rx, fresh, "x", "stroke:red, stroke-width:3px",getLabel, withConditions = true)}${
         (for s<-rx.inits yield s"  style $s fill:#8f7,stroke:#363,stroke-width:4px\n").mkString
       }"
+
 
     /** Generates a mermaid graph with only the ground edges */
     def toMermaidPlain(rx: RxGraph): String =
@@ -177,78 +188,50 @@ object Program2:
     private def getLabel(n:QName, rx:RxGraph): Set[String] =
       for (a,b,c) <- rx.lbls.getOrElse(n,Set()) yield s"$a$b$c"
 
-    private def drawEdges(es:EdgeMap,rx:RxGraph,fresh:()=>Int,tip:String,
-                          style:String,getEnds:(QName,RxGraph)=>Set[String],simple:Boolean=false, withConditions: Boolean = false): String =
-      
-      val nodeDeclarations = new StringBuilder()
-      val connections = new StringBuilder()
-      val customStyles = new StringBuilder()
-      val linkStyles = new StringBuilder()
+    private def drawEdges(
+    es: EdgeMap,
+    rx: RxGraph,
+    fresh: () => Int,
+    tip: String,
+    style: String,
+    getEnds: (QName, RxGraph) => Set[String],
+    simple: Boolean = false,
+    withConditions: Boolean = false): String =
+      (for 
+      (a,bs)<-es.toList
+      (b,c) <- bs.toList
+      a2<-getEnds(a,rx).toList
+      b2<-getEnds(b,rx).toList
+      yield
 
-      val allNodeIds = scala.collection.mutable.Set[String]()
-      var currentLinkStyleIndex = 0
-
-      for ((a,bs)<-es.toList; (b,c) <- bs.toList; a2<-getEnds(a,rx).toList; b2<-getEnds(b,rx).toList) {
-        val edge = (a,b,c)
+        val edge = (a, b, c)
         val line = if rx.act(edge) then "---" else "-.-"
 
-        val conditionRawText = if withConditions then rx.edgeConditions.getOrElse(edge, None).map(_.toMermaidString).getOrElse("") else ""
-        val updateRawText = if withConditions then rx.edgeUpdates.getOrElse(edge, None).map(_.toString).getOrElse("") else "" 
-        
+        // monta rótulo combinado
         val qNameLabel = if c.n.nonEmpty then c.toString else ""
+        val condText   = if withConditions then rx.edgeConditions.getOrElse(edge, None).map(_.toMermaidString).getOrElse("") else ""
+        val updText    = if withConditions then rx.edgeUpdates   .getOrElse(edge, None).map(_.toString)         .getOrElse("") else ""
+        val combined   = List(qNameLabel,updText, condText).filter(_.nonEmpty).mkString(" ")
         
-        val combinedLabelParts = List(qNameLabel, updateRawText, conditionRawText).filter(_.nonEmpty) 
-        val combinedLabelText = combinedLabelParts.mkString(" ") 
-
-        if simple then
-          // Modo simples: start ---> |label| end
-          allNodeIds += a2
-          allNodeIds += b2
-          if combinedLabelText.nonEmpty then
-            connections.append(s"  $a2 $line$tip |$combinedLabelText| $b2\n")
-          else
-            connections.append(s"  $a2 $line$tip $b2\n") // Aresta sem rótulo explícito
-          linkStyles.append(s"  linkStyle ${currentLinkStyleIndex} $style\n")
-          currentLinkStyleIndex += 1
-        else {
-          val transitionNodeId = "t" + Math.abs((a.toString + "->" + b.toString + ":" + c.toString).hashCode)
-          
-          allNodeIds += a2
-          allNodeIds += b2
-          allNodeIds += transitionNodeId
-
-          if combinedLabelText.nonEmpty then
-            nodeDeclarations.append(s"  $transitionNodeId[\"$combinedLabelText\"]\n")
-            customStyles.append(s"  style $transitionNodeId fill:none,stroke:none,stroke-width:0\n")
-            
-            // Conexões sem rótulos nas arestas
-            connections.append(s"  $a2 $line $transitionNodeId\n")
-            linkStyles.append(s"  linkStyle ${currentLinkStyleIndex} $style\n")
-            currentLinkStyleIndex += 1
-
-            connections.append(s"  $transitionNodeId $line$tip $b2\n")
-            linkStyles.append(s"  linkStyle ${currentLinkStyleIndex} $style\n")
-            currentLinkStyleIndex += 1
-          else
-            // Se não houver texto combinado, uma aresta simples sem rótulo e sem nó de transição
-            connections.append(s"  $a2 $line$tip $b2\n")
-            linkStyles.append(s"  linkStyle ${currentLinkStyleIndex} $style\n")
-            currentLinkStyleIndex += 1
+        if (condText.nonEmpty || updText.nonEmpty){
+          s"  $a2 $line$tip |$combined| $b2\n"+
+          s"  linkStyle ${fresh()} $style\n"
         }
-      }
+        else{
 
-      val distinctRealNodes = allNodeIds.filterNot(id => id.startsWith("t") && rx.states.map(_.toString).contains(id.substring(1))) // Avoid redeclaring transition nodes
-      for (nodeId <- distinctRealNodes) {
-        // Se já foi declarado explicitamente com um label, não redeclara.
-        // Se for um nó de estado e não um nó de transição oculto, declara-o simples.
-        if (!nodeId.startsWith("t") && !nodeDeclarations.toString.contains(s"$nodeId[")) {
-           nodeDeclarations.append(s"  $nodeId\n")
+
+        if c.n.isEmpty
+        then s"  $a2 $line$tip $b2\n"+
+             s"  linkStyle ${fresh()} $style\n"
+        else if simple
+        then s"  $a2 $line$tip |$c| $b2\n"+
+             s"  linkStyle ${fresh()} $style\n"
+        else s"  $a2 $line $a$b$c( ) $line$tip |$c| $b2\n" +
+             s"  style $a$b$c width: 0\n"+
+             s"  linkStyle ${fresh()} $style\n"+
+             s"  linkStyle ${fresh()} $style\n"
         }
-      }
-
-
-      s"${nodeDeclarations.toString}\n${connections.toString}\n${customStyles.toString}\n${linkStyles.toString}"+
-       (for s<-rx.inits yield s"  style $s fill:#8f7,stroke:#363,stroke-width:4px\n").mkString 
+      ).mkString
 
   object Examples:
     implicit def s2n(str:String): QName = QName(List(str))

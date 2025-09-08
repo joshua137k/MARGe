@@ -33,25 +33,11 @@ document.addEventListener('DOMContentLoaded', function () {
   var display = document.getElementById('id-1996100447Box');
   var text = `
 flowchart LR
-
-
-  t1934553555["step1 (counter < 2)"]
-  t143362062["activateStep2 (counter == 1)"]
-
-  start --- t1934553555
-  t1934553555 --> middle
-  middle --- t143362062
-  t143362062 --> endNode
-
-  style t1934553555 fill:none,stroke:none,stroke-width:0
-  style t143362062 fill:none,stroke:none,stroke-width:0
-  style start fill:#8f7,stroke:#363,stroke-width:4px
-
+  start ---> |step1 \counter += 1 counter < 2| middle
   linkStyle 0 stroke:black, stroke-width:2px
+  middle ---> |activateStep2 counter == 1| endN
   linkStyle 1 stroke:black, stroke-width:2px
-  linkStyle 2 stroke:black, stroke-width:2px
-  linkStyle 3 stroke:black, stroke-width:2px
-
+  style start fill:#8f7,stroke:#363,stroke-width:4px
   `;
 
   try {
