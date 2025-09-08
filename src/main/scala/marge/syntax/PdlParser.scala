@@ -3,6 +3,7 @@ package marge.syntax
 import cats.parse.{Parser => P, Parser0 => P0}
 import cats.parse.Rfc5234.{alpha, digit, wsp}
 import marge.syntax.Formula.*
+import marge.syntax.PdlProgram.*
 
 
 /**
@@ -22,51 +23,87 @@ object PdlParser {
 }
 
 
-
 object ModalParser {
 
-  // ---- Primitives & Utilities ----
+  // ---- espaços/ident ----
   private val sps: P0[Unit] = wsp.rep0.void
   private val identHead: P[Char] = alpha.orElse(P.charIn('_'))
-  private val identTail: P0[Unit] = (alpha.void | digit.void | P.char('_') | P.char('-')).rep0.void
-  private val ident: P[String] = (identHead ~ identTail).string.surroundedBy(sps)
+  private val identTail: P0[Unit] =
+    (alpha.void | digit.void | P.char('_') | P.char('-')).rep0.void
+  private val ident: P[String] =
+    (identHead ~ identTail).string.surroundedBy(sps)
   private def sym(s: String): P[Unit] = P.string(s).surroundedBy(sps)
 
-  // ---- Recursive Parser Structure ----
-  private lazy val unary: P[Formula] = P.defer {
-    val prop = ident.map(Prop.apply)
-    val parens = P.defer(formula).between(sym("("), sym(")"))
-    val notP = (sym("~") | sym("¬")) *> unary.map(Not)
+  // =========================================================
+  // PdlProgramAS (α) com precedência:  *  >  ;  >  +
+  // =========================================================
 
-    // Dynamic operators (with identifier)
-    val boxAP = ((P.char('[') *> ident <* P.char(']')) ~ unary).map {
-      case (action, f) => BoxA(action, f)
-    }
-    val diaAP = ((P.char('<') *> ident <* P.char('>')) ~ unary).map {
-      case (action, f) => DiamondA(action, f)
-    }
-
-    // Modal operators (without identifier)
-    val boxP = P.string("[]").surroundedBy(sps) *> unary.map(Box)
-    val diaP = P.string("<>").surroundedBy(sps) *> unary.map(Diamond)
-
-  
-    notP | boxP | boxAP.backtrack | diaP | diaAP.backtrack | parens | prop
+  // átomo de PdlPrograma: ação ou parênteses
+  private lazy val progAtom: P[PdlProgram] = P.defer {
+    val act: P[PdlProgram] = ident.map(Act.apply)
+    val parens: P[PdlProgram] = PdlProgram.between(sym("("), sym(")"))
+    parens | act
   }
 
-  private def leftAssoc(op: P[Unit], next: P[Formula], cons: (Formula, Formula) => Formula): P[Formula] =
+  // pós-fixo estrela: α*
+  private lazy val progStar: P[PdlProgram] =
+    (progAtom ~ sym("*").rep0).map { case (p, stars) =>
+      // várias estrelas seguidas ainda é Star(p)
+      if (stars.isEmpty) p else Star(p)
+    }
+
+  // sequência: α ; β  (left-assoc)
+  private def leftAssocP(op: P[Unit], next: P[PdlProgram], cons: (PdlProgram, PdlProgram) => PdlProgram): P[PdlProgram] =
     (next ~ (op *> next).rep0).map { case (h, t) => t.foldLeft(h)(cons) }
 
-  private def rightAssoc(op: P[Unit], next: P[Formula], cons: (Formula, Formula) => Formula): P[Formula] =
-    next.flatMap(h => (op *> P.defer(rightAssoc(op, next, cons))).? map {
+  private lazy val progSeq: P[PdlProgram]   = leftAssocP(sym(";"), progStar, Seq.apply)
+  private lazy val progChoice: P[PdlProgram]= leftAssocP(sym("+"), progSeq, Choice.apply)
+
+  // ponto de entrada p/ PdlProgramas
+  private lazy val PdlProgram: P[PdlProgram] = progChoice
+
+  // =========================================================
+  // FÓRMULAS
+  // =========================================================
+
+  private def leftAssocF(op: P[Unit], next: P[Formula], cons: (Formula, Formula) => Formula): P[Formula] =
+    (next ~ (op *> next).rep0).map { case (h, t) => t.foldLeft(h)(cons) }
+
+  private def rightAssocF(op: P[Unit], next: P[Formula], cons: (Formula, Formula) => Formula): P[Formula] =
+    next.flatMap(h => (op *> P.defer(rightAssocF(op, next, cons))).? map {
       case Some(t) => cons(h, t)
       case None    => h
     })
 
-  private lazy val conj: P[Formula] = leftAssoc(sym("&&") | sym("∧"), unary, And.apply)
-  private lazy val disj: P[Formula] = leftAssoc(sym("||"), conj, Or.apply)
-  private lazy val impl: P[Formula] = rightAssoc(sym("=>") | sym("->"), disj, Impl.apply)
-  private lazy val iff: P[Formula] = rightAssoc(sym("<->"), impl, Iff.apply)
+  // unary (¬, [], <>, [α], <α>)
+  private lazy val unary: P[Formula] = P.defer {
+    val prop: P[Formula]   = ident.map(Prop.apply)
+    val parens: P[Formula] = formula.between(sym("("), sym(")"))
+    val notP: P[Formula]   = (sym("~") | sym("¬")) *> unary.map(Not.apply)
+
+    // modais "puros" (se quiser manter o significado de um passo genérico)
+    val boxPure: P[Formula] = P.string("[]").surroundedBy(sps) *> unary.map(Box.apply)
+    val diaPure: P[Formula] = P.string("<>").surroundedBy(sps) *> unary.map(Diamond.apply)
+
+    // dinâmicos com PdlProgramA
+    val boxProg: P[Formula] =
+      (P.char('[') *> PdlProgram <* P.char(']')) ~ unary map { case (pg, f) => BoxP(pg, f) }
+
+    val diaProg: P[Formula] =
+      (P.char('<') *> PdlProgram <* P.char('>')) ~ unary map { case (pg, f) => DiamondP(pg, f) }
+
+    // Ordem para evitar ambiguidade com "[]":
+    // 1) tentar "[]", "<>" exatamente
+    // 2) depois [α] e <α>
+    // 3) outros
+    notP | boxPure | diaPure | boxProg.backtrack | diaProg.backtrack | parens | prop
+  }
+
+  // precedência binária: && > || > ->/=> (dir) > <-> (dir)
+  private lazy val conj: P[Formula] = leftAssocF(sym("&&") | sym("∧"), unary, And.apply)
+  private lazy val disj: P[Formula] = leftAssocF(sym("||"), conj, Or.apply)
+  private lazy val impl: P[Formula] = rightAssocF(sym("=>") | sym("->"), disj, Impl.apply)
+  private lazy val iff:  P[Formula] = rightAssocF(sym("<->"), impl, Iff.apply)
 
   val formula: P[Formula] = sps.with1 *> iff
 

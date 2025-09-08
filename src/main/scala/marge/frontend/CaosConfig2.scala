@@ -34,10 +34,11 @@ object CaosConfig2 extends Configurator[RxGraph]:
 
   /** Examples of programs that the user can choose from. The first is the default one. */
   val examples = List(
-    "Joshua" -> "int counter = 0\ninit start\nstart --> middle: step1 \\counter+=1 [counter < 2]\nmiddle --> endN: activateStep2 [counter == 1]"
-      -> "Basic example with counter updates and conditions",
     "Simple" -> "init s0\ns0 --> s1: a\ns1 --> s0: b\na  --! a: offA"
       -> "Basic example",
+    "Test" -> "int counter = 0\ninit start\nstart --> middle: step1 \\counter+=1 [counter < 2]\nmiddle --> endN: activateStep2 [counter == 1]"
+      -> "Basic example with counter updates and conditions",
+    
     "Counter" -> "init s0\ns0 --> s0: act\nact --! act: offAct disabled\nact ->> offAct: on1 disabled\nact ->> on1"
       -> "turns off a transition after 3 times.",
     "Penguim" -> "init Son_of_Tweetie\nSon_of_Tweetie --> Special_Penguin\nSpecial_Penguin --> Penguin: Penguim\nPenguin --> Bird: Bird\nBird --> Does_Fly: Fly\n\nBird --! Fly: noFly\nPenguim --! noFly"
@@ -69,7 +70,7 @@ object CaosConfig2 extends Configurator[RxGraph]:
          inputElement.`type` = "text"
          inputElement.style.width = "100%"
          inputElement.style.height = "24px" 
-         inputElement.value = "s0 => <a>s1" 
+         inputElement.value = "s0 -> <a>s1" 
 
          
          currentDiv.appendChild(inputElement)
