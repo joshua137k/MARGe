@@ -15,7 +15,7 @@ import org.scalajs.dom
 import org.scalajs.dom.html
 
 
-import marge.syntax.PdlFormula
+import marge.syntax.{Formula as PdlFormula}
 import marge.syntax.PdlParser
 import marge.backend.PdlEvaluator
 
@@ -30,7 +30,7 @@ object CaosConfig2 extends Configurator[RxGraph]:
   var pdlInputElem: Option[html.Input] = None
 
   def getPdlInputContent(): String =
-    pdlInputElem.map(_.value.replaceAll("\\s", "")).getOrElse("")
+    pdlInputElem.map(_.value).getOrElse("")
 
   /** Examples of programs that the user can choose from. The first is the default one. */
   val examples = List(

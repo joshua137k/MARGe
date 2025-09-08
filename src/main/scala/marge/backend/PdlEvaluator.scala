@@ -1,55 +1,71 @@
 package marge.backend
 
 import marge.syntax.Program2.{QName, RxGraph}
-import marge.syntax.*
+import marge.syntax.{Formula as PdlFormula} 
+import marge.syntax.Formula.*               
 import scala.annotation.tailrec
 
 object PdlEvaluator {
-  private def evaluateProgram(initialStates: Set[QName], program: PdlProgram, rx: RxGraph): Set[QName] = {
-    program match {
-      case AtomicProgram(name) =>
-        initialStates.flatMap(st =>
-          rx.edg.getOrElse(st, Set()).collect {
-            case (target, label) if label == name && rx.act.contains((st, target, label)) => target
-          }
-        )
-      case Sequence(first, second) =>
-        val midStates = evaluateProgram(initialStates, first, rx)
-        evaluateProgram(midStates, second, rx)
-      case Union(left, right) =>
-        evaluateProgram(initialStates, left, rx) ++ evaluateProgram(initialStates, right, rx)
-      case Test(formula) =>
-        initialStates.filter(st => evaluateFormula(st, formula, rx))
-      case Iteration(prog) =>
-        @tailrec
-        def fixedPoint(reachable: Set[QName], frontier: Set[QName]): Set[QName] = {
-          if (frontier.isEmpty) reachable
-          else {
-            val newStates = evaluateProgram(frontier, prog, rx) -- reachable
-            fixedPoint(reachable ++ newStates, newStates)
-          }
-        }
-        fixedPoint(initialStates, initialStates)
+
+ 
+  private def evaluateFormula(rx: RxGraph, formula: PdlFormula): Boolean = {
+    // Evaluation is meaningless if there is no current state in the configuration.
+    if (rx.inits.isEmpty) return false
+
+    formula match {
+   
+      case Prop(name) =>
+        rx.inits.head.toString == name
+
+      // Standard logical connectives
+      case Not(p) =>
+        !evaluateFormula(rx, p)
+
+      case And(p, q) =>
+        evaluateFormula(rx, p) && evaluateFormula(rx, q)
+
+      case Or(p, q) =>
+        evaluateFormula(rx, p) || evaluateFormula(rx, q)
+
+      case Impl(p, q) =>
+        !evaluateFormula(rx, p) || evaluateFormula(rx, q)
+
+      case Iff(p, q) =>
+        val pHolds = evaluateFormula(rx, p)
+        val qHolds = evaluateFormula(rx, q)
+        (pHolds && qHolds) || (!pHolds && !qHolds)
+
+      // Dynamic logic operators
+      case DiamondA(act, p) =>
+        // <a>p: "There EXISTS an 'act'-transition to a next configuration where p holds."
+        val nextConfigurations = RxSemantics.next(rx)
+        val transitionsWithAction = nextConfigurations.filter { case (label, _) => label.show == act }
+        transitionsWithAction.exists { case (_, nextRx) => evaluateFormula(nextRx, p) }
+
+      case BoxA(act, p) =>
+        // [a]p: "FOR ALL 'act'-transitions, the resulting configuration must satisfy p."
+        val nextConfigurations = RxSemantics.next(rx)
+        val transitionsWithAction = nextConfigurations.filter { case (label, _) => label.show == act }
+        // The formula is vacuously true if there are no 'act'-transitions.
+        transitionsWithAction.forall { case (_, nextRx) => evaluateFormula(nextRx, p) }
+
+      // General modal operators
+      case Diamond(p) =>
+        // <>p: "There EXISTS ANY transition to a next configuration where p holds."
+        val nextConfigurations = RxSemantics.next(rx)
+        nextConfigurations.exists { case (_, nextRx) => evaluateFormula(nextRx, p) }
+
+      case Box(p) =>
+        // []p: "FOR ALL possible transitions, the resulting configuration must satisfy p."
+        val nextConfigurations = RxSemantics.next(rx)
+        // Vacuously true if there are no transitions (deadlock).
+        nextConfigurations.forall { case (_, nextRx) => evaluateFormula(nextRx, p) }
     }
   }
 
   def evaluateFormula(state: QName, formula: PdlFormula, rx: RxGraph): Boolean = {
-    formula match {
-      case Prop(name) =>
-        if (name.n.map(_.toLowerCase) == List("true")) true
-        else if (name.n.map(_.toLowerCase) == List("false")) false
-        else state == name
-      case Not(f) => !evaluateFormula(state, f, rx)
-      case And(f1, f2) => evaluateFormula(state, f1, rx) && evaluateFormula(state, f2, rx)
-      case Or(f1, f2) => evaluateFormula(state, f1, rx) || evaluateFormula(state, f2, rx)
-      case Implies(f1, f2) => !evaluateFormula(state, f1, rx) || evaluateFormula(state, f2, rx)
-      case Iff(f1, f2) => evaluateFormula(state, f1, rx) == evaluateFormula(state, f2, rx)
-      case Diamond(prog, form) =>
-        val successors = evaluateProgram(Set(state), prog, rx)
-        successors.exists(s => evaluateFormula(s, form, rx))
-      case Box(prog, form) =>
-        val successors = evaluateProgram(Set(state), prog, rx)
-        successors.forall(s => evaluateFormula(s, form, rx))
-    }
+    // Create the initial configuration for the evaluation by setting the initial state.
+    val initialConfig = rx.copy(inits = Set(state))
+    evaluateFormula(initialConfig, formula)
   }
 }
