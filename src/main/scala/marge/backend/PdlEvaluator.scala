@@ -10,78 +10,66 @@ import scala.annotation.tailrec
 
 object PdlEvaluator {
 
-
-  private def evaluateProgram(initialStates: Set[QName], program: PdlProgram, rx: RxGraph): Set[QName] = {
+  private def evaluateProgram(initialConfigs: Set[RxGraph], program: PdlProgram): Set[RxGraph] = {
     program match {
-   
       case Act(name) =>
-        initialStates.flatMap { state =>
-          val config = rx.copy(inits = Set(state))
+        initialConfigs.flatMap { config =>
           val nextTransitions = RxSemantics.next(config)
           nextTransitions
             .filter { case (label, _) => label.show == name }
-            .flatMap { case (_, nextRx) => nextRx.inits }
+            .map { case (_, nextRx) => nextRx }
         }
 
-     
+
       case Seq(p, q) =>
-        val intermediateStates = evaluateProgram(initialStates, p, rx)
-        evaluateProgram(intermediateStates, q, rx)
+        val intermediateConfigs = evaluateProgram(initialConfigs, p)
+        evaluateProgram(intermediateConfigs, q)
 
-   
+      
       case Choice(p, q) =>
-        evaluateProgram(initialStates, p, rx) ++ evaluateProgram(initialStates, q, rx)
-
-      /**
-       * Kleene star: p* (executes p zero or more times)
-       * This is the reflexive–transitive closure. We compute it via a fixpoint:
-       * 1. Start with the current set of states (zero executions).
-       * 2. Iteratively add every new state reachable by executing `p` from any state already found.
-       * 3. Repeat until no new states are added (fixpoint reached).
-       */
+        evaluateProgram(initialConfigs, p) ++ evaluateProgram(initialConfigs, q)
 
       case Star(p) =>
         @tailrec
-        def fixedPoint(currentStates: Set[QName]): Set[QName] = {
-          val nextStates = currentStates ++ evaluateProgram(currentStates, p, rx)
-          if (nextStates == currentStates) {
-            currentStates // Ponto fixo alcançado
+        def fixedPoint(currentConfigs: Set[RxGraph], seenConfigs: Set[RxGraph]): Set[RxGraph] = {
+
+          val newConfigs = evaluateProgram(currentConfigs, p) -- seenConfigs
+          if (newConfigs.isEmpty) {
+            seenConfigs 
           } else {
-            fixedPoint(nextStates)
+            fixedPoint(newConfigs, seenConfigs ++ newConfigs)
           }
         }
-        fixedPoint(initialStates)
+        fixedPoint(initialConfigs, initialConfigs)
     }
   }
 
-
-  private def evaluateFormula(rx: RxGraph, formula: PdlFormula): Boolean = {
-    if (rx.inits.isEmpty) return false 
+  private def evaluateFormula(config: RxGraph, formula: PdlFormula): Boolean = {
+    if (config.inits.isEmpty) return false 
 
     formula match {
       case Prop(name) =>
-        rx.inits.head.toString == name
+        config.inits.exists(_.toString == name)
 
-      case Not(p) => !evaluateFormula(rx, p)
-      case And(p, q) => evaluateFormula(rx, p) && evaluateFormula(rx, q)
-      case Or(p, q) => evaluateFormula(rx, p) || evaluateFormula(rx, q)
-      case Impl(p, q) => !evaluateFormula(rx, p) || evaluateFormula(rx, q)
-      case Iff(p, q) => evaluateFormula(rx, p) == evaluateFormula(rx, q)
+      case Not(p) => !evaluateFormula(config, p)
+      case And(p, q) => evaluateFormula(config, p) && evaluateFormula(config, q)
+      case Or(p, q) => evaluateFormula(config, p) || evaluateFormula(config, q)
+      case Impl(p, q) => !evaluateFormula(config, p) || evaluateFormula(config, q)
+      case Iff(p, q) => evaluateFormula(config, p) == evaluateFormula(config, q)
 
-      
       case DiamondP(prog, p) =>
-        val finalStates = evaluateProgram(rx.inits, prog, rx)
-        finalStates.exists(finalState => evaluateFormula(rx.copy(inits = Set(finalState)), p))
-      
+        val finalConfigs = evaluateProgram(Set(config), prog)
+        finalConfigs.exists(finalConfig => evaluateFormula(finalConfig, p))
+
       case BoxP(prog, p) =>
-        val finalStates = evaluateProgram(rx.inits, prog, rx)
-        finalStates.forall(finalState => evaluateFormula(rx.copy(inits = Set(finalState)), p))
+        val finalConfigs = evaluateProgram(Set(config), prog)
+        finalConfigs.forall(finalConfig => evaluateFormula(finalConfig, p))
 
       case Diamond(p) =>
-        RxSemantics.next(rx).exists { case (_, nextRx) => evaluateFormula(nextRx, p) }
+        RxSemantics.next(config).exists { case (_, nextConfig) => evaluateFormula(nextConfig, p) }
 
       case Box(p) =>
-        RxSemantics.next(rx).forall { case (_, nextRx) => evaluateFormula(nextRx, p) }
+        RxSemantics.next(config).forall { case (_, nextConfig) => evaluateFormula(nextConfig, p) }
     }
   }
 

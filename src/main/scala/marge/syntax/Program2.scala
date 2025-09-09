@@ -175,6 +175,7 @@ object Program2:
         drawEdges(rx.off,rx, fresh, "x", "stroke:red, stroke-width:3px",getLabel, withConditions = true)}${
         (for s<-rx.inits yield s"  style $s fill:#8f7,stroke:#363,stroke-width:4px\n").mkString
       }"
+    
 
 
     /** Generates a mermaid graph with only the ground edges */

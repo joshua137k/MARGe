@@ -27,10 +27,14 @@ object CaosConfig2 extends Configurator[RxGraph]:
   val parser = marge.syntax.Parser2.parseProgram
 
 
-  var pdlInputElem: Option[html.Input] = None
+  var pdlFormulaInput: Option[html.Input] = None
+  var pdlStateInput: Option[html.Input] = None
 
-  def getPdlInputContent(): String =
-    pdlInputElem.map(_.value).getOrElse("")
+  def getPdlFormulaContent(): String =
+    pdlFormulaInput.map(_.value).getOrElse("")
+
+  def getPdlStateContent(): String =
+    pdlStateInput.map(_.value).getOrElse("")
 
   /** Examples of programs that the user can choose from. The first is the default one. */
   val examples = List(
@@ -43,59 +47,89 @@ object CaosConfig2 extends Configurator[RxGraph]:
       -> "turns off a transition after 3 times.",
     "Penguim" -> "init Son_of_Tweetie\nSon_of_Tweetie --> Special_Penguin\nSpecial_Penguin --> Penguin: Penguim\nPenguin --> Bird: Bird\nBird --> Does_Fly: Fly\n\nBird --! Fly: noFly\nPenguim --! noFly"
       -> "Figure 7.4 in Dov M Gabbay, Cognitive Technologies Reactive Kripke Semantics",
-    "Vending (max 1eur)" -> "init Insert\nInsert --> Coffee: 50ct\nInsert --> Chocolate: 1eur\nCoffee --> Insert: Get_coffee\nChocolate --> Insert: Get_choc\n\n1eur --! 50ct\n1eur --! 1eur\n50ct --! 50ct: last50ct disabled\n50ct --! 1eur\n50ct ->> last50ct"
-      -> "Example of a vending machine, presented in a recently accepted companion paper at FACS 2024. There is a total of 1eur to be spent, and some transitions are deactivated when there is not enough money.",
+    "Vending (max eur1)" -> "init Insert\nInsert --> Coffee: ct50\nInsert --> Chocolate: eur1\nCoffee --> Insert: Get_coffee\nChocolate --> Insert: Get_choc\n\neur1 --! ct50\neur1 --! eur1\nct50 --! ct50: lastct50 disabled\nct50 --! eur1\nct50 ->> lastct50"
+      -> "Example of a vending machine, presented in a recently accepted companion paper at FACS 2024. There is a total of eur1 to be spent, and some transitions are deactivated when there is not enough money.",
     "Vending (max 3prod)" -> "init pay\npay --> select: insert_coin\nselect --> soda: ask_soda\nselect --> beer: ask_beer\nsoda --> pay: get_soda\nbeer --> pay: get_beer\n\nask_soda --! ask_soda: noSoda disabled\nask_beer --! ask_beer: noBeer\nask_soda ->> noSoda"
       -> "Variation of an example of a vending machine, presented in a recently accepted companion paper at FACS 2024. There is a total of 1 beer and 2 sodas available.",
-    "Intrusive product" -> "aut s {\n  init 0\n  0 --> 1: a\n  1 --> 2: b\n  2 --> 0: d disabled\n  a --! b\n}\naut w {\n  init 0\n  0 --> 1: a\n  1 --> 0: c\n  a --! a: noAs disabled\n  a ->> noAs\n}\n// intrusion\nw.c ->> s.b",
-    "Conflict" -> "init 0\n0 --> 1: a\n1 --> 2: b\n2 --> 3: c disabled\n\na ->> b: on\non --! b: off"
+    "Intrusive product" -> "aut s {\n  init i0\n  i0 --> i1: a\n  i1 --> i2: b\n  i2 --> i0: d disabled\n  a --! b\n}\naut w {\n  init 0\n  i0 --> i1: a\n  i1 --> i0: c\n  a --! a: noAs disabled\n  a ->> noAs\n}\n// intrusion\nw.c ->> s.b",
+    "Conflict" -> "init i0\ni0 --> i1: a\ni1 --> i2: b\ni2 --> i3: c disabled\n\na ->> b: on\non --! b: off"
       -> "Possible conflict detected in the analysis.",
-    "Dependencies" -> "aut A {\n  init 0\n  0 --> 1: look\n  1 --> 0: restart\n}\n\naut B {\n  init 0\n  0 --> 1: on\n  1 --> 2: goLeft disabled\n  1 --> 2: goRight disabled\n  goLeft --#-- goRight\n  2 --> 0: off\n}\n\n// dependencies\nA.look ----> B.goLeft\nA.look ----> B.goRight"
+    "Dependencies" -> "aut A {\n  init i0\n  i0 --> i1: look\n  i1 --> i0: restart\n}\n\naut B {\n  init i0\n  i0 --> i1: on\n  i1 --> i2: goLeft disabled\n  i1 --> i2: goRight disabled\n  goLeft --#-- goRight\n  i2 --> i0: off\n}\n\n// dependencies\nA.look ----> B.goLeft\nA.look ----> B.goRight"
       -> "Experimental syntax to describe dependencies, currently only as syntactic sugar.",
     "Dynamic SPL" -> "init setup\nsetup --> setup: Safe\nsetup --> setup: Unsafe\nsetup --> setup: Encrypt\nsetup --> setup: Dencrypt\nsetup --> ready\nready --> setup\nready --> received: Receive\nreceived --> routed_safe: ERoute  disabled\nreceived --> routed_unsafe: Route\nrouted_safe --> sent: ESend       disabled\nrouted_unsafe --> sent: Send\nrouted_unsafe --> sent_encrypt: ESend disabled\nsent_encrypt --> ready: Ready\nsent --> ready: Ready\n\nSafe ->> ERoute\nSafe --! Route\nUnsafe --! ERoute\nUnsafe ->> Route\nEncrypt --! Send\nEncrypt ->> ESend\nDencrypt ->> Send\nDencrypt --! ESend"
       -> "Example of a Dynamic Software Product Line, borrowed from Fig 1 in Maxime Cordy et al. <em>Model Checking Adaptive Software with Featured Transition Systems</em>"
   )
 
-   /** Description of the widgets that appear in the dashboard. */
    val widgets = List(
-    "PDL Input" -> Custom("pdlInputArea", (stx: RxGraph) => {
-       val divId = "pdlInputArea"
-       val inputId = "pdlInputTextarea"
-       val currentDiv = dom.document.getElementById(divId)
+    "PDL Analysis" -> Custom("pdlCombinedArea", (stx: RxGraph) => {
+      val mainDivId = "pdlCombinedArea"
+      val stateInputId = "pdlStateInput"
+      val formulaInputId = "pdlFormulaInput"
+      val mainDiv = dom.document.getElementById(mainDivId)
 
-       if (pdlInputElem.isEmpty) {
-         currentDiv.innerHTML = "" 
-         val inputElement = dom.document.createElement("input").asInstanceOf[html.Input]
-         inputElement.id = inputId
-         inputElement.`type` = "text"
-         inputElement.style.width = "100%"
-         inputElement.style.height = "24px" 
-         inputElement.value = "s0 -> <a>s1" 
+      if (pdlStateInput.isEmpty || pdlFormulaInput.isEmpty) {
+        mainDiv.innerHTML = ""
 
-         
-         currentDiv.appendChild(inputElement)
-         pdlInputElem = Some(inputElement)
-       }
-       
-     }, buttons = List()).moveTo(1), 
+        val gridContainer = dom.document.createElement("div").asInstanceOf[html.Div]
+        
 
+        gridContainer.style.setProperty("display", "grid")
+        gridContainer.style.setProperty("grid-template-columns", "auto 1fr") 
+        gridContainer.style.setProperty("gap", "5px")
+        gridContainer.style.setProperty("align-items", "center")
 
+        val stateLabel = dom.document.createElement("span").asInstanceOf[html.Span]
+        stateLabel.textContent = "Start State:"
+        val stateInputElement = dom.document.createElement("input").asInstanceOf[html.Input]
+        stateInputElement.id = stateInputId
+        stateInputElement.`type` = "text"
+        stateInputElement.style.width = "100%"
+        stateInputElement.value = stx.inits.headOption.map(_.toString).getOrElse("")
+        
+        val formulaLabel = dom.document.createElement("span").asInstanceOf[html.Span]
+        formulaLabel.textContent = "Formula:"
+        val formulaInputElement = dom.document.createElement("input").asInstanceOf[html.Input]
+        formulaInputElement.id = formulaInputId
+        formulaInputElement.`type` = "text"
+        formulaInputElement.style.width = "100%"
+        formulaInputElement.value = "<a>s1"
 
+        gridContainer.appendChild(stateLabel)
+        gridContainer.appendChild(stateInputElement)
+        gridContainer.appendChild(formulaLabel)
+        gridContainer.appendChild(formulaInputElement)
+
+        mainDiv.appendChild(gridContainer)
+
+        pdlStateInput = Some(stateInputElement)
+        pdlFormulaInput = Some(formulaInputElement)
+      } else {
+        pdlStateInput.foreach(_.value = stx.inits.headOption.map(_.toString).getOrElse(""))
+      }
+    }, buttons = List()).moveTo(1),
 
     "PDL Evaluation Result" -> view((rx: RxGraph) => {
-      val pdlString = getPdlInputContent()
-      if (pdlString.trim.isEmpty) {
-        "Enter a PDL formula in the 'PDL Input' box."
-      } else {
-        rx.inits.headOption match {
-          case None => "Error: The reactive graph has no initial state."
-          case Some(initialState) =>
-            try {
-              val formula = PdlParser.parsePdlFormula(pdlString)
-              val result = PdlEvaluator.evaluateFormula(initialState, formula, rx)
-              s"Evaluating from state: ${initialState.show}\nFormula: ${formula.toString}\nResult: $result"
-            } catch {
-              case e: Throwable => s"Error: ${e.getMessage}"
+      val formulaString = getPdlFormulaContent()
+      val stateString = getPdlStateContent()
+
+      if (formulaString.trim.isEmpty)
+        "Enter a PDL formula."
+      else if (stateString.trim.isEmpty)
+        "Enter a start state."
+      else {
+        Parser2.pp(Parser2.qname, stateString) match {
+          case Left(err) => s"Error parsing state name: $err"
+          case Right(startState) =>
+            if (!rx.states.contains(startState)) {
+              s"State '${startState.show}' not found. Available: ${rx.states.map(_.show).mkString(", ")}"
+            } else {
+              try {
+                val formula = PdlParser.parsePdlFormula(formulaString)
+                val result = PdlEvaluator.evaluateFormula(startState, formula, rx)
+                s"From state: ${startState.show}\nFormula: ${formula.toString}\nResult: $result"
+              } catch {
+                case e: Throwable => s"Error: ${e.getMessage}"
+              }
             }
         }
       }
