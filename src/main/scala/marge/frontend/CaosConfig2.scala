@@ -19,16 +19,21 @@ import marge.syntax.{Formula as PdlFormula}
 import marge.syntax.PdlParser
 import marge.backend.PdlEvaluator
 
-import scala.scalajs.js.Dynamic.global
+import marge.backend.CytoscapeConverter
+
+import scala.scalajs.js.JSON 
+import scala.scalajs.js.annotation.{JSExport, JSExportTopLevel}
+import scala.scalajs.js.Dynamic.global 
+import marge.syntax.Program2.Edge
 
 
 /** Object used to configure which analysis appear in the browser */
+@JSExportTopLevel("CaosConfig2")
 object CaosConfig2 extends Configurator[RxGraph]:
   val name = "Animator of Labelled Reactive Graphs"
   override val languageName: String = "Input Reactive Graphs"
 
   val parser = marge.syntax.Parser2.parseProgram
-
 
   var pdlFormulaInput: Option[html.Input] = None
   var pdlStateInput: Option[html.Input] = None
@@ -38,6 +43,65 @@ object CaosConfig2 extends Configurator[RxGraph]:
 
   def getPdlStateContent(): String =
     pdlStateInput.map(_.value).getOrElse("")
+
+  var simulationHistory: List[RxGraph] = Nil
+
+  private def generateSimulationJson(graph: RxGraph, traversedEdge: Option[Edge] = None): String = {
+    val graphElementsJson = CytoscapeConverter(graph)
+    val enabledTransitions = RxSemantics.nextEdge(graph).map(_._1)
+    val enabledJson = enabledTransitions.map { case (from, to, lbl) =>
+      s"""{"from":"$from", "to":"$to", "lbl":"$lbl", "label":"${lbl.show}"}"""
+    }.mkString(",")
+
+    val traversedJson = traversedEdge match {
+      case Some((from, to, lbl)) => s"""{"from":"$from", "to":"$to", "lbl":"$lbl"}"""
+      case None => "null"
+    }
+
+    s"""
+       |{
+       |  "graphElements": $graphElementsJson,
+       |  "panelData": { "enabled": [$enabledJson], "canUndo": ${simulationHistory.size > 1} },
+       |  "lastTransition": $traversedJson
+       |}
+       |""".stripMargin
+  }
+
+   private def stringToQName(str: String): Program2.QName =
+    if (str.isEmpty) Program2.QName(Nil)
+    else Program2.QName(str.split('/').toList)
+
+  @JSExport
+  def takeStep(edgeJson: String): Unit = {
+    val edgeData = JSON.parse(edgeJson)
+    val from = stringToQName(edgeData.selectDynamic("from").toString)
+    val to = stringToQName(edgeData.selectDynamic("to").toString)
+    val lbl = stringToQName(edgeData.selectDynamic("lbl").toString)
+    val clickedEdge: Edge = (from, to, lbl)
+
+    simulationHistory.headOption.foreach { currentState =>
+      RxSemantics.nextEdge(currentState).find(_._1 == clickedEdge) match {
+        case Some((_, nextRxGraph)) =>
+          simulationHistory = nextRxGraph :: simulationHistory
+          val fullJson = generateSimulationJson(nextRxGraph, Some(clickedEdge))
+          global.renderCytoscapeGraph("cytoscapeMainContainer", fullJson, false)
+        case None =>
+          println(s"Aviso: Nenhuma transição encontrada para a aresta $clickedEdge no estado atual.")
+      }
+    }
+  }
+
+  @JSExport
+  def undoStep(): Unit = {
+    if (simulationHistory.size > 1) {
+      simulationHistory = simulationHistory.tail
+      simulationHistory.headOption.foreach { prevState =>
+        val fullJson = generateSimulationJson(prevState, None)
+        global.renderCytoscapeGraph("cytoscapeMainContainer", fullJson, false)
+      }
+    }
+  }
+
 
   /** Examples of programs that the user can choose from. The first is the default one. */
   val examples = List(
@@ -142,6 +206,16 @@ object CaosConfig2 extends Configurator[RxGraph]:
       }
     }, Text).moveTo(1),
      
+    "Step-by-step(Anim)" -> Custom(
+      divName = "cytoscapeMainContainer",
+      reload = (stx: RxGraph) => {
+        simulationHistory = List(stx)
+        val fullJson = generateSimulationJson(stx)
+        global.renderCytoscapeGraph("cytoscapeMainContainer", fullJson, true)
+      },
+      buttons = List()
+    ).expand,
+
      "View State" -> view[RxGraph](_.toString, Text),
      "Step-by-step" -> steps((e:RxGraph)=>e, RxSemantics, RxGraph.toMermaid, _.show, Mermaid).expand,
      "Step-by-step (simpler)" -> steps((e:RxGraph)=>e, RxSemantics, RxGraph.toMermaidPlain, _.show, Mermaid).expand,

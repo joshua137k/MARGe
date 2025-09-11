@@ -165,7 +165,7 @@ object Program2:
     def toMermaid(rx: RxGraph): String =
       var i = -1
       def fresh(): Int = {i += 1; i}
-      /*global.console.log(s"flowchart LR\n${
+      global.console.log(s"flowchart LR\n${
         drawEdges(rx.edg, rx, fresh, ">", "stroke:black, stroke-width:2px",(x,y) => Set(x.toString), withConditions = true)}${
         drawEdges(rx.on, rx, fresh, ">", "stroke:blue, stroke-width:3px",getLabel, withConditions = true)}${
         drawEdges(rx.off,rx, fresh, "x", "stroke:red, stroke-width:3px",getLabel, withConditions = true)}${
@@ -173,7 +173,7 @@ object Program2:
       }");
 
 
-      i = -1*/
+      i = -1
 
       s"flowchart LR\n${
         drawEdges(rx.edg, rx, fresh, ">", "stroke:black, stroke-width:2px",(x,y) => Set(x.toString), withConditions = true)}${
