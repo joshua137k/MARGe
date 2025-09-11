@@ -4,7 +4,7 @@ import cats.parse.{Parser => P, Parser0 => P0}
 import cats.parse.Rfc5234.{alpha, digit, wsp}
 import marge.syntax.Formula.*
 import marge.syntax.PdlProgram.*
-
+import marge.syntax.Program2.QName
 
 /**
  * Supports:
@@ -32,15 +32,20 @@ object ModalParser {
     (alpha.void | digit.void | P.char('_') | P.char('-')).rep0.void
   private val ident: P[String] =
     (identHead ~ identTail).string.surroundedBy(sps)
-  private def sym(s: String): P[Unit] = P.string(s).surroundedBy(sps)
 
-  // =========================================================
+  private val pdlIdent: P[String] = (identHead ~ identTail).string
+  private val pdlQNameParser: P[QName] = pdlIdent.repSep(P.char('/')).map(parts => QName(parts.toList))
+  private val qualifiedIdentString: P[String] =
+    pdlIdent.repSep(P.char('/')).map(_.toList.mkString("/")).surroundedBy(sps)
+
+  private def sym(s: String): P[Unit] = P.string(s).surroundedBy(sps)
+  // ====================================== ===================
   // PdlProgramAS (α) com precedência:  *  >  ;  >  +
   // =========================================================
 
   // átomo de PdlPrograma: ação ou parênteses
   private lazy val progAtom: P[PdlProgram] = P.defer {
-    val act: P[PdlProgram] = ident.map(Act.apply)
+    val act: P[PdlProgram] = pdlQNameParser.map(Act.apply)
     val parens: P[PdlProgram] = PdlProgram.between(sym("("), sym(")"))
     parens | act
   }
@@ -77,7 +82,7 @@ object ModalParser {
 
   // unary (¬, [], <>, [α], <α>)
   private lazy val unary: P[Formula] = P.defer {
-    val prop: P[Formula]   = ident.map(Prop.apply)
+    val prop: P[Formula]   = qualifiedIdentString.map(Prop.apply)
     val parens: P[Formula] = formula.between(sym("("), sym(")"))
     val notP: P[Formula]   = (sym("~") | sym("¬")) *> unary.map(Not.apply)
 

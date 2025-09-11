@@ -15,7 +15,8 @@ object Program2:
   case class QName(n:List[String]):
     override def toString = n.mkString("/")
     def show = if n.isEmpty then "-" else toString
-    def /(other:QName) = if other.n.isEmpty then other else QName(n:::other.n)
+    def /(other:QName) = if other.n.isEmpty then this else if n.isEmpty then other else QName(n:::other.n) 
+    //def /(other:QName) = if other.n.isEmpty then other else QName(n:::other.n)
     def /(other:String) = QName(n:::List(other))
     def /(e:EdgeMap):EdgeMap =
       e.map(kv=>(this/(kv._1) -> kv._2.map((x,y)=>(this/x,this/y))))
@@ -25,6 +26,11 @@ object Program2:
       es.map((x,y,z)=>(this/x,this/y,this/z))
     def /-(ns:Set[QName]): Set[QName] =
       ns.map(n => this/n)
+    
+    // Ex: (s/i0).scope -> s
+    // Ex: (a/b/c).scope -> a/b
+    def scope: QName = QName(n.init)
+
     def /(rx: RxGraph): RxGraph =
         RxGraph(this/rx.edg, this/rx.on, this/rx.off, this/-rx.lbls,
           this/-rx.inits, this/rx.act,

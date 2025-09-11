@@ -12,30 +12,44 @@ object PdlEvaluator {
 
   private def evaluateProgram(initialConfigs: Set[RxGraph], program: PdlProgram): Set[RxGraph] = {
     program match {
-      case Act(name) =>
+      case Act(nameFromFormula) =>
         initialConfigs.flatMap { config =>
-          val nextTransitions = RxSemantics.next(config)
-          nextTransitions
-            .filter { case (label, _) => label.show == name }
-            .map { case (_, nextRx) => nextRx }
-        }
+          // For each global configuration, we consider the transition of each
+          // active automaton (each state in 'inits') individually.
+          config.inits.flatMap { initState =>
+            // Creates a temporary configuration focused on a single automaton
+            // to obtain its possible transitions without interference from the others.
+            val singleStateConfig = config.copy(inits = Set(initState))
+            val transitions = RxSemantics.nextEdge(singleStateConfig)
 
+            transitions
+              .filter { case ((from, _, label), _) =>
+                val currentScope = from.scope
+                (nameFromFormula == label) || (nameFromFormula == (currentScope / label))
+              }
+              .map { case (_, nextRxFromSemantic) =>
+                
+                val otherInits = config.inits - initState
+                val correctGlobalInits = otherInits ++ nextRxFromSemantic.inits
+                
+                nextRxFromSemantic.copy(inits = correctGlobalInits)
+              }
+          }
+        }
 
       case Seq(p, q) =>
         val intermediateConfigs = evaluateProgram(initialConfigs, p)
         evaluateProgram(intermediateConfigs, q)
 
-      
       case Choice(p, q) =>
         evaluateProgram(initialConfigs, p) ++ evaluateProgram(initialConfigs, q)
 
       case Star(p) =>
         @tailrec
         def fixedPoint(currentConfigs: Set[RxGraph], seenConfigs: Set[RxGraph]): Set[RxGraph] = {
-
           val newConfigs = evaluateProgram(currentConfigs, p) -- seenConfigs
           if (newConfigs.isEmpty) {
-            seenConfigs 
+            seenConfigs
           } else {
             fixedPoint(newConfigs, seenConfigs ++ newConfigs)
           }
@@ -45,11 +59,12 @@ object PdlEvaluator {
   }
 
   private def evaluateFormula(config: RxGraph, formula: PdlFormula): Boolean = {
-    if (config.inits.isEmpty) return false 
+    if (config.inits.isEmpty) return false
 
     formula match {
       case Prop(name) =>
-        config.inits.exists(_.toString == name)
+        val propAsQName = QName(name.split('/').toList)
+        config.inits.contains(propAsQName)
 
       case Not(p) => !evaluateFormula(config, p)
       case And(p, q) => evaluateFormula(config, p) && evaluateFormula(config, q)
@@ -73,9 +88,8 @@ object PdlEvaluator {
     }
   }
 
-
-  def evaluateFormula(state: QName, formula: PdlFormula, rx: RxGraph): Boolean = {
-    val initialConfig = rx.copy(inits = Set(state))
+  def evaluateFormula(startState: QName, formula: PdlFormula, rx: RxGraph): Boolean = {
+    val initialConfig = rx
     evaluateFormula(initialConfig, formula)
   }
 }

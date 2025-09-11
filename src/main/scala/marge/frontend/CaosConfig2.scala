@@ -19,6 +19,9 @@ import marge.syntax.{Formula as PdlFormula}
 import marge.syntax.PdlParser
 import marge.backend.PdlEvaluator
 
+import scala.scalajs.js.Dynamic.global
+
+
 /** Object used to configure which analysis appear in the browser */
 object CaosConfig2 extends Configurator[RxGraph]:
   val name = "Animator of Labelled Reactive Graphs"
@@ -51,7 +54,7 @@ object CaosConfig2 extends Configurator[RxGraph]:
       -> "Example of a vending machine, presented in a recently accepted companion paper at FACS 2024. There is a total of eur1 to be spent, and some transitions are deactivated when there is not enough money.",
     "Vending (max 3prod)" -> "init pay\npay --> select: insert_coin\nselect --> soda: ask_soda\nselect --> beer: ask_beer\nsoda --> pay: get_soda\nbeer --> pay: get_beer\n\nask_soda --! ask_soda: noSoda disabled\nask_beer --! ask_beer: noBeer\nask_soda ->> noSoda"
       -> "Variation of an example of a vending machine, presented in a recently accepted companion paper at FACS 2024. There is a total of 1 beer and 2 sodas available.",
-    "Intrusive product" -> "aut s {\n  init i0\n  i0 --> i1: a\n  i1 --> i2: b\n  i2 --> i0: d disabled\n  a --! b\n}\naut w {\n  init 0\n  i0 --> i1: a\n  i1 --> i0: c\n  a --! a: noAs disabled\n  a ->> noAs\n}\n// intrusion\nw.c ->> s.b",
+    "Intrusive product" -> "aut s {\n  init i0\n  i0 --> i1: a\n  i1 --> i2: b\n  i2 --> i0: d disabled\n  a --! b\n}\naut w {\n  init i0\n  i0 --> i1: a\n  i1 --> i0: c\n  a --! a: noAs disabled\n  a ->> noAs\n}\n// intrusion\nw.c ->> s.b",
     "Conflict" -> "init i0\ni0 --> i1: a\ni1 --> i2: b\ni2 --> i3: c disabled\n\na ->> b: on\non --! b: off"
       -> "Possible conflict detected in the analysis.",
     "Dependencies" -> "aut A {\n  init i0\n  i0 --> i1: look\n  i1 --> i0: restart\n}\n\naut B {\n  init i0\n  i0 --> i1: on\n  i1 --> i2: goLeft disabled\n  i1 --> i2: goRight disabled\n  goLeft --#-- goRight\n  i2 --> i0: off\n}\n\n// dependencies\nA.look ----> B.goLeft\nA.look ----> B.goRight"
@@ -117,15 +120,19 @@ object CaosConfig2 extends Configurator[RxGraph]:
       else if (stateString.trim.isEmpty)
         "Enter a start state."
       else {
-        Parser2.pp(Parser2.qname, stateString) match {
+        val adaptedStateString = stateString.replace('/', '.')
+        Parser2.pp(Parser2.qname, adaptedStateString) match {
           case Left(err) => s"Error parsing state name: $err"
           case Right(startState) =>
             if (!rx.states.contains(startState)) {
               s"State '${startState.show}' not found. Available: ${rx.states.map(_.show).mkString(", ")}"
             } else {
               try {
+                global.console.log("formulaString:"+formulaString)
+                global.console.log("startState:"+startState)
                 val formula = PdlParser.parsePdlFormula(formulaString)
                 val result = PdlEvaluator.evaluateFormula(startState, formula, rx)
+                global.console.log(s"From state: ${startState.show}\nFormula: ${formula.toString}\nResult: $result")
                 s"From state: ${startState.show}\nFormula: ${formula.toString}\nResult: $result"
               } catch {
                 case e: Throwable => s"Error: ${e.getMessage}"
