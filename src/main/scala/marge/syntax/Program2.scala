@@ -80,6 +80,25 @@ object Program2:
     override def toString = s"\\${variable} ${op} ${value}"
   }
 
+  object Condition {
+    def evaluate(condition: Condition, env: Map[QName, Int]): Boolean = {
+      val leftVal = env.getOrElse(condition.left, 0)
+      val rightVal = condition.right match {
+        case Left(i) => i
+        case Right(qname) => env.getOrElse(qname, 0)
+      }
+      condition.op match {
+        case ">=" => leftVal >= rightVal
+        case "<=" => leftVal <= rightVal
+        case "==" => leftVal == rightVal
+        case "!=" => leftVal != rightVal
+        case ">"  => leftVal > rightVal
+        case "<"  => leftVal < rightVal
+        case _    => false
+      }
+    }
+  }
+
   /**
    * Reactive graph.
    * Each edge is indentified by a triple (from,to,lbl).
@@ -195,49 +214,55 @@ object Program2:
     private def getLabel(n:QName, rx:RxGraph): Set[String] =
       for (a,b,c) <- rx.lbls.getOrElse(n,Set()) yield s"$a$b$c"
 
+
     private def drawEdges(
-    es: EdgeMap,
-    rx: RxGraph,
-    fresh: () => Int,
-    tip: String,
-    style: String,
-    getEnds: (QName, RxGraph) => Set[String],
-    simple: Boolean = false,
-    withConditions: Boolean = false): String =
-      (for 
-      (a,bs)<-es.toList
-      (b,c) <- bs.toList
-      a2<-getEnds(a,rx).toList
-      b2<-getEnds(b,rx).toList
+      es: EdgeMap,
+      rx: RxGraph,
+      fresh: () => Int,
+      tip: String,
+      style: String,
+      getEnds: (QName, RxGraph) => Set[String],
+      simple: Boolean = false,
+      withConditions: Boolean = false
+    ): String =
+      (for
+        (a, bs) <- es.toList
+        (b, c) <- bs.toList
+        a2 <- getEnds(a, rx).toList
+        b2 <- getEnds(b, rx).toList
       yield
-
         val edge = (a, b, c)
-        val line = if rx.act(edge) then "---" else "-.-"
 
-        // monta rótulo combinado
-        val qNameLabel = if c.n.nonEmpty then c.toString else ""
+
+        val isGloballyActive = rx.act(edge)
+
+        val isConditionSatisfied = rx.edgeConditions.getOrElse(edge, None) match {
+          case None => true 
+          case Some(condition) => Condition.evaluate(condition, rx.val_env)
+        }
+
+        val line = if (isGloballyActive && isConditionSatisfied) then "---" else "-.-"
+
+        val qNameLabel = if c.n.nonEmpty then c.show else ""
+        val updText    = if withConditions then rx.edgeUpdates.getOrElse(edge, None).map(_.toString).getOrElse("") else ""
         val condText   = if withConditions then rx.edgeConditions.getOrElse(edge, None).map(_.toMermaidString).getOrElse("") else ""
-        val updText    = if withConditions then rx.edgeUpdates   .getOrElse(edge, None).map(_.toString)         .getOrElse("") else ""
-        val combined   = List(qNameLabel,updText, condText).filter(_.nonEmpty).mkString(" ")
+        val combined   = List(qNameLabel, updText, condText).filter(_.nonEmpty).mkString(" ")
         
-        if (condText.nonEmpty || updText.nonEmpty){
-          s"  $a2 $line$tip |$combined| $b2\n"+
+        if c.n.isEmpty then
+          val edgeLabel = if combined.nonEmpty then s"|${combined}|" else ""
+          s"  $a2 $line$tip $edgeLabel $b2\n" +
           s"  linkStyle ${fresh()} $style\n"
-        }
-        else{
+        
+        else if simple then
+          s"  $a2 $line$tip |$combined| $b2\n" +
+          s"  linkStyle ${fresh()} $style\n"
+        
+        else
+          s"  $a2 $line $a$b$c( ) $line$tip |$combined| $b2\n" +
+          s"  style $a$b$c width: 0\n" +
+          s"  linkStyle ${fresh()} $style\n" +
+          s"  linkStyle ${fresh()} $style\n"
 
-
-        if c.n.isEmpty
-        then s"  $a2 $line$tip $b2\n"+
-             s"  linkStyle ${fresh()} $style\n"
-        else if simple
-        then s"  $a2 $line$tip |$c| $b2\n"+
-             s"  linkStyle ${fresh()} $style\n"
-        else s"  $a2 $line $a$b$c( ) $line$tip |$c| $b2\n" +
-             s"  style $a$b$c width: 0\n"+
-             s"  linkStyle ${fresh()} $style\n"+
-             s"  linkStyle ${fresh()} $style\n"
-        }
       ).mkString
 
   object Examples:

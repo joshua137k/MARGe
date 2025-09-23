@@ -4,7 +4,7 @@ import cats.parse.{Parser => P, Parser0 => P0}
 import cats.parse.Rfc5234.{alpha, digit, wsp}
 import marge.syntax.Formula.*
 import marge.syntax.PdlProgram.*
-import marge.syntax.Program2.QName
+import marge.syntax.Program2.{Condition, QName}
 
 /**
  * Supports:
@@ -37,6 +37,19 @@ object ModalParser {
   private val pdlQNameParser: P[QName] = pdlIdent.repSep(P.char('/')).map(parts => QName(parts.toList))
   private val qualifiedIdentString: P[String] =
     pdlIdent.repSep(P.char('/')).map(_.toList.mkString("/")).surroundedBy(sps)
+  
+  private def integer: P[Int] = digit.rep(1).string.map(_.toInt)
+  private def comparisonOp: P[String] = (
+    P.string(">=").as(">=") | P.string("<=").as("<=") |
+    P.string("==").as("==") | P.string("!=").as("!=") |
+    P.string(">").as(">")   | P.string("<").as("<")
+  ).surroundedBy(sps)
+  private def intOrQName: P[Either[Int, QName]] =
+    integer.map(Left(_)) | pdlQNameParser.map(Right(_))
+
+  private def pdlConditionParser: P[Condition] =
+    (pdlQNameParser ~ comparisonOp ~ intOrQName)
+      .map { case ((left, op), right) => Condition(left, op, right) }
 
   private def sym(s: String): P[Unit] = P.string(s).surroundedBy(sps)
   // ====================================== ===================
@@ -82,11 +95,13 @@ object ModalParser {
 
   // unary (¬, [], <>, [α], <α>)
   private lazy val unary: P[Formula] = P.defer {
-    val prop: P[Formula]   = qualifiedIdentString.map(Prop.apply)
+    //val prop: P[Formula]   = qualifiedIdentString.map(Prop.apply)
+    val stateProp: P[Formula] = pdlQNameParser.map(StateProp.apply)
+    val condProp: P[Formula]  = pdlConditionParser.between(sym("["), sym("]")).map(CondProp.apply)
+    val prop = condProp | stateProp 
     val parens: P[Formula] = formula.between(sym("("), sym(")"))
     val notP: P[Formula]   = (sym("~") | sym("¬")) *> unary.map(Not.apply)
 
-    // modais "puros" (se quiser manter o significado de um passo genérico)
     val boxPure: P[Formula] = P.string("[]").surroundedBy(sps) *> unary.map(Box.apply)
     val diaPure: P[Formula] = P.string("<>").surroundedBy(sps) *> unary.map(Diamond.apply)
 
@@ -105,7 +120,8 @@ object ModalParser {
   }
 
   // precedência binária: && > || > ->/=> (dir) > <-> (dir)
-  private lazy val conj: P[Formula] = leftAssocF(sym("&&") | sym("∧"), unary, And.apply)
+  private lazy val conjP: P[Formula] = leftAssocF(sym("&|&") | sym("∧"), unary, PipeAnd.apply)
+  private lazy val conj: P[Formula] = leftAssocF(sym("&&") | sym("∧"), conjP, And.apply)
   private lazy val disj: P[Formula] = leftAssocF(sym("||"), conj, Or.apply)
   private lazy val impl: P[Formula] = rightAssocF(sym("=>") | sym("->"), disj, Impl.apply)
   private lazy val iff:  P[Formula] = rightAssocF(sym("<->"), impl, Iff.apply)

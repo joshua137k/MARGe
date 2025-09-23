@@ -1,5 +1,5 @@
-
 var currentCytoscapeInstance = null;
+var textTraceHistory = [];
 
 function renderCytoscapeGraph(mainContainerId, combinedJsonData, isFirstRender) {
     var mainContainer = document.getElementById(mainContainerId);
@@ -10,8 +10,18 @@ function renderCytoscapeGraph(mainContainerId, combinedJsonData, isFirstRender) 
 
     try {
         var data = JSON.parse(combinedJsonData);
-
+        if (isFirstRender){
+            textTraceHistory = [];
+        }
+        
         if (!isFirstRender && currentCytoscapeInstance) {
+            if (data.lastTransition) {
+                textTraceHistory.push(data.lastTransition.to);
+            } else { 
+                if (textTraceHistory.length > 1) { 
+                    textTraceHistory.pop();
+                }
+            }
             updateSidePanel(mainContainerId + '_panel', data.panelData);
             
             currentCytoscapeInstance.json({ elements: data.graphElements });
@@ -22,6 +32,7 @@ function renderCytoscapeGraph(mainContainerId, combinedJsonData, isFirstRender) 
                 var to = trans.to;
                 var lbl = trans.lbl;
                 var elementsToFlash;
+                
 
                 if (lbl === "") {
                     var edgeId = `#direct_${from}_${to}_`;
@@ -65,6 +76,8 @@ function renderCytoscapeGraph(mainContainerId, combinedJsonData, isFirstRender) 
         graphDiv.style.flexGrow = '1';
         graphDiv.style.backgroundColor = '#1a1b26';
 
+        
+
         mainContainer.appendChild(panelDiv);
         mainContainer.appendChild(graphDiv);
 
@@ -75,23 +88,57 @@ function renderCytoscapeGraph(mainContainerId, combinedJsonData, isFirstRender) 
             elements: data.graphElements,
             style: [ 
                 { selector: 'node', style: { 'label': 'data(label)', 'text-valign': 'center', 'color': '#c0caf5', 'font-family': 'sans-serif', 'font-weight': 'bold', 'text-outline-width': 2, 'text-outline-color': '#1a1b26' } },
-                { selector: 'edge', style: { 'width': 2, 'curve-style': 'bezier', 'target-arrow-shape': 'triangle', 'line-color': '#565f89', 'target-arrow-color': '#565f89' } },
+                { selector: 'edge', style: { 'width': 2, 'curve-style': 'bezier', 'target-arrow-shape': 'none', 'line-color': '#565f89', 'target-arrow-color': '#565f89', 'line-style': 'solid' } },
+                { selector: '.from-event-node', style: { 'target-arrow-shape': 'triangle' } },
                 { selector: '.disabled', style: { 'line-style': 'dashed', 'line-color': '#414868', 'target-arrow-color': '#414868' } },
                 { selector: 'edge[label]', style: { 'label': 'data(label)', 'font-size': '12px', 'color': '#c0caf5', 'text-background-color': '#24283b', 'text-background-opacity': 1, 'text-background-padding': '3px', 'text-background-shape': 'round-rectangle', 'text-rotation': 'autorotate', 'text-margin-y': -15 } },
                 { selector: '.state-node', style: { 'background-color': '#7aa2f7', 'shape': 'ellipse' } },
                 { selector: '.current-state', style: { 'background-color': '#9ece6a', 'border-color': '#c0caf5', 'border-width': 3, 'border-style': 'solid' } },
-                { selector: '.event-node', style: { 'background-color': '#565f89', 'shape': 'round-rectangle' } },
+                { selector: '.event-node', style: { 'background-color': '#565f89', 'shape': 'rectangle', 'width': '25px', 'height': '25px' } },
                 { selector: '.event-node.enabled', style: { 'background-color': '#ff9e64' } },
                 { selector: '.event-node.disabled', style: { 'background-color': '#565f89', 'opacity': 0.7 } },
                 { selector: '.compound-parent', style: { 'background-color': '#24283b', 'background-opacity': 0.5, 'border-color': '#414868', 'border-width': 2, 'content': 'data(label)', 'text-valign': 'top', 'color': '#c0caf5', 'text-outline-width': 0, 'font-weight': 'bold', 'font-size': '16px' } },
-                { selector: '.rule-edge', style: { 'line-style': 'dashed', 'width': 1.5, 'source-arrow-shape': 'circle' } },
-                { selector: '.enable-rule', style: { 'line-color': '#9ece6a', 'target-arrow-color': '#9ece6a', 'source-arrow-color': '#9ece6a' } },
-                { selector: '.disable-rule', style: { 'line-color': '#f7768e', 'target-arrow-color': '#f7768e', 'source-arrow-color': '#f7768e', 'target-arrow-shape': 'tee' } },
-                {selector: '.spontaneous-transition', style: {'line-color': '#7dcfff', 'target-arrow-color': '#7dcfff','line-style': 'dotted'}},
-                {selector: 'node.transition-flash',style: {'background-color': '#ff9e64','border-color': 'white','shape': 'round-rectangle' }},
-                {selector: 'edge.transition-flash',style: {'line-color': '#ff9e64','target-arrow-color': '#ff9e64','source-arrow-color': '#ff9e64','width': 4}},
+                
+                { selector: '.rule-edge', style: { 'width': 1.5, 'source-arrow-shape': 'circle' } },
+                { selector: '.enable-rule',
+                     style: { 
+                        'line-color': '#7aa2f7', 
+                        'target-arrow-color': '#7aa2f7', 
+                        'source-arrow-color': '#7aa2f7', 
+                        'color': '#7aa2f7', 
+                        'target-arrow-shape': 'circle-triangle', 
+                        'font-size': '12px',
+                        'target-text-offset': 5,
+                        
+                     } },
+                
+                { 
+                    selector: '.disable-rule', 
+                    style: { 
+                        'line-color': '#f7768e',
+                        'source-arrow-color': '#f7768e',
+                        'target-label': 'X', 
+                        'target-arrow-shape': 'none',
+                        'font-size': '12px',
+                        'color': '#f7768e',
+                        'target-text-offset': 5
+                    } 
+                },
+                
+                { selector: '.spontaneous-transition', style: {'line-color': '#7dcfff', 'target-arrow-color': '#7dcfff','line-style': 'dotted'}},
+                { selector: 'node.transition-flash',style: {'background-color': '#ff9e64','border-color': 'white' }},
+                { selector: 'edge.transition-flash',style: {'line-color': '#ff9e64','target-arrow-color': '#ff9e64','source-arrow-color': '#ff9e64','width': 4}},
             ],
-            layout: { name: 'dagre', rankDir: 'LR', spacingFactor: 1.1, fit: true, padding: 30 }
+            layout: {
+                name: 'dagre',
+                rankDir: 'LR', 
+                fit: true,
+                padding: 50, 
+                spacingFactor: 1.2, 
+                nodeSep: 60,       
+                rankSep: 70,     
+                edgeSep: 10         
+            }
         });
 
         cy.on('tap', 'node.event-node.enabled', function(evt){
@@ -106,8 +153,15 @@ function renderCytoscapeGraph(mainContainerId, combinedJsonData, isFirstRender) 
                 CaosConfig2.takeStep(edgeJson);
             }
         });
-        cy.on('mouseover', 'node.event-node.enabled', function(e) { e.target.style('cursor', 'pointer'); });
-        cy.on('mouseout', 'node.event-node.enabled', function(e) { e.target.style('cursor', 'default'); });
+        
+        cy.on('mouseover', 'node.event-node.enabled', function(e) {
+            var container = e.cy.container();
+            container.style.cursor = 'pointer';
+        });
+        cy.on('mouseout', 'node.event-node.enabled', function(e) {
+            var container = e.cy.container();
+            container.style.cursor = 'default';
+        });
 
         currentCytoscapeInstance = cy;
 
@@ -125,6 +179,9 @@ function updateSidePanel(panelId, panelData) {
     if (!panelDiv) return;
     panelDiv.innerHTML = '';
 
+
+
+
     var undoButton = document.createElement('button');
     undoButton.innerText = 'undo';
     undoButton.onclick = function() { CaosConfig2.undoStep(); };
@@ -132,6 +189,24 @@ function updateSidePanel(panelId, panelData) {
     panelDiv.appendChild(undoButton);
     
     panelDiv.appendChild(document.createElement('hr'));
+
+    if (textTraceHistory && textTraceHistory.length > 0) {
+        var traceTitle = document.createElement('p');
+        traceTitle.innerText = 'History Trace:';
+        traceTitle.style.fontWeight = 'bold';
+        traceTitle.style.marginTop = '10px';
+        panelDiv.appendChild(traceTitle);
+
+        var traceText = document.createElement('p');
+        traceText.innerText = textTraceHistory.join(' -> '); 
+        traceText.style.wordBreak = 'break-all';
+        traceText.style.fontFamily = 'monospace';
+        traceText.style.fontSize = '14px';
+        panelDiv.appendChild(traceText);
+        
+        panelDiv.appendChild(document.createElement('hr'));
+    }
+
 
     var title = document.createElement('p');
     title.innerText = 'Enabled transitions:';
@@ -153,4 +228,36 @@ function updateSidePanel(panelId, panelData) {
             panelDiv.appendChild(transButton);
         });
     }
+    var layoutSelectorContainer = document.createElement('div');
+    layoutSelectorContainer.style.marginBottom = '10px';
+
+    var layoutLabel = document.createElement('label');
+    layoutLabel.innerText = 'Layout: ';
+    layoutLabel.htmlFor = 'layoutSelector';
+
+    var layoutSelector = document.createElement('select');
+    layoutSelector.id = 'layoutSelector';
+    layoutSelector.innerHTML = `
+        <option value="dagre" selected>Dagre (Hierárquico)</option>
+        <option value="cose">Cose (Forças)</option>
+    `;
+
+    layoutSelectorContainer.appendChild(layoutLabel);
+    layoutSelectorContainer.appendChild(layoutSelector);
+    panelDiv.appendChild(layoutSelectorContainer); // Adiciona ao painel
+
+    layoutSelector.onchange = function(event) {
+        var layoutName = event.target.value;
+        var layoutOptions;
+        // Pega as opções de layout que definimos acima
+        if (layoutName === 'dagre') {
+            layoutOptions = { name: 'dagre', rankDir: 'LR', fit: true, padding: 50, spacingFactor: 1.2, nodeSep: 60, rankSep: 70, edgeSep: 10 };
+        } else if (layoutName === 'cose') {
+            layoutOptions = { name: 'cose', animate: true, fit: true, padding: 30, nodeRepulsion: 400000, idealEdgeLength: 100, componentSpacing: 100 };
+        }
+
+        if (currentCytoscapeInstance) {
+            currentCytoscapeInstance.layout(layoutOptions).run();
+        }
+    };
 }

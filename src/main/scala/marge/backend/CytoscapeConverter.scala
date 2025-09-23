@@ -1,9 +1,10 @@
 package marge.backend
 
-import marge.syntax.Program2.{Edge, QName, RxGraph}
+import marge.syntax.Program2.{Condition,Edge, QName, RxGraph}
 
 
 object CytoscapeConverter {
+
 
   def apply(rx: RxGraph): String = {
 
@@ -45,7 +46,8 @@ object CytoscapeConverter {
     val actionfulSimpleConnections = actionfulSimpleEdges.flatMap { edge =>
       val (from, to, lbl) = edge
       val edgeNodeId = s"${from}_${to}_${lbl}"
-      val isDisabled = !rx.act.contains(edge)
+      val conditionHolds = rx.edgeConditions.getOrElse(edge, None).forall(cond => Condition.evaluate(cond, rx.val_env))
+      val isDisabled = !rx.act.contains(edge) || !conditionHolds
       val disabledClass = if (isDisabled) " disabled" else ""
 
       List(
@@ -70,7 +72,8 @@ object CytoscapeConverter {
         targetNodes = Set(toLabel.toString)
       }
 
-      val isRuleDisabled = !rx.act.contains(edge)
+      val conditionHoldsRule = rx.edgeConditions.getOrElse(edge, None).forall(cond => Condition.evaluate(cond, rx.val_env))
+      val isRuleDisabled = !rx.act.contains(edge) || !conditionHoldsRule
       val disabledClass = if (isRuleDisabled) " disabled" else ""
       
       for {

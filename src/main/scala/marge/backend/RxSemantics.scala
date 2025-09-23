@@ -2,7 +2,9 @@ package marge.backend
 
 import marge.syntax.Program2.{Condition,CounterUpdate, Edge, Edges, QName, RxGraph}
 import caos.sos.SOS
-
+import scala.scalajs.js.Dynamic.global
+import marge.syntax.Program2.showEdge
+import marge.syntax.Program2.showEdges
 import scala.annotation.tailrec
 
 object RxSemantics extends SOS[QName,RxGraph] {
@@ -31,18 +33,23 @@ object RxSemantics extends SOS[QName,RxGraph] {
    */
   def toOnOff(e: Edge, rx: RxGraph): (Edges, Edges, Map[QName, Int]) = {
     val triggeredHyperEdges = from(e, rx)
+    global.console.log(s"[toOnOff] Hyper-arestas acionadas por ${showEdge(e)}: ${showEdges(triggeredHyperEdges)}")
     var currentEnv = rx.val_env
     var toActivate = Set.empty[Edge]
     var toDeactivate = Set.empty[Edge]
 
     for (hyperEdge <- triggeredHyperEdges) {
+      global.console.log(s"[toOnOff] Processando hyper-aresta: ${showEdge(hyperEdge)}")
       // Check the condition of the hyper-edge itself
       val conditionHolds = rx.edgeConditions.getOrElse(hyperEdge, None) match {
-        case Some(cond) => evalCondition(cond, currentEnv)
-        case None => true // No condition means it always holds
+        case Some(cond) => Condition.evaluate(cond, currentEnv)
+        case None => 
+          global.console.log(s"[toOnOff] Hyper-aresta ${showEdge(hyperEdge)} não possui condição.")
+          true // No condition means it always holds
       }
 
       if (conditionHolds) {
+        global.console.log(s"[toOnOff] Condição da hyper-aresta ${showEdge(hyperEdge)} satisfeita. Aplicando efeitos.")
         // If condition holds, apply the counter update of the hyper-edge
         rx.edgeUpdates.getOrElse(hyperEdge, None) match {
           case Some(CounterUpdate(variable, op, value)) =>
@@ -52,6 +59,7 @@ object RxSemantics extends SOS[QName,RxGraph] {
               case "-=" => currentEnv = currentEnv + (variable -> (currentVal - value))
               case _    => // Should not happen
             }
+            global.console.log(s"[toOnOff] Aplicada atualização da hyper-aresta: ${CounterUpdate(variable, op, value)}. Ambiente agora é: ${currentEnv.map{case (k,v) => s"$k=$v"}.mkString(", ")}")
           case None => // No update
         }
 
@@ -66,24 +74,11 @@ object RxSemantics extends SOS[QName,RxGraph] {
         }
       }
     }
+    global.console.log(s"[toOnOff] Efeitos finais: Ativar: ${showEdges(toActivate)}, Desativar: ${showEdges(toDeactivate)}")
     (toActivate, toDeactivate, currentEnv)
   }
 
-  private def evalCondition(condition: Condition, env: Map[QName, Int]): Boolean =
-    val leftVal = env.getOrElse(condition.left, 0)
-    val rightVal = condition.right match
-      case Left(i) => i
-      case Right(qname) => env.getOrElse(qname, 0)
-
-    condition.op match
-      case ">=" => leftVal >= rightVal
-      case "<=" => leftVal <= rightVal
-      case "==" => leftVal == rightVal
-      case "!=" => leftVal != rightVal
-      case ">"  => leftVal > rightVal
-      case "<"  => leftVal < rightVal
-      case _    => false
-  
+    
   /** Calulates the next possible init states */
   def next[Name >: QName](rx: RxGraph): Set[(Name, RxGraph)] =
     nextEdge(rx).map(e => e._1._3 -> e._2)
@@ -95,10 +90,13 @@ object RxSemantics extends SOS[QName,RxGraph] {
         (st2, lbl) <- rx.edg(st)
         edge = (st, st2, lbl)
         if rx.act(edge)
+        _ = global.console.log(s"[nextEdge] Considerando a aresta principal ativa: ${showEdge(edge)}")
         // 1. Check condition on the main edge
         conditionHolds = rx.edgeConditions.getOrElse(edge, None) match
-          case Some(cond) => evalCondition(cond, rx.val_env)
-          case None => true
+          case Some(cond) => Condition.evaluate(cond, rx.val_env)
+          case None =>
+            global.console.log(s"[nextEdge] Aresta ${showEdge(edge)} não possui condição.")
+            true
         if conditionHolds
     yield
       // 2. Apply counter update for the main edge FIRST
@@ -111,11 +109,13 @@ object RxSemantics extends SOS[QName,RxGraph] {
             case "-=" => envAfterMainUpdate = envAfterMainUpdate + (variable -> (currentVal - value))
             case _ =>
           }
+          global.console.log(s"[nextEdge] Aplicada atualização da aresta principal: ${CounterUpdate(variable, op, value)}. Novo ambiente (temporário): ${envAfterMainUpdate.map{case (k,v) => s"$k=$v"}.mkString(", ")}")
         case None =>
       }
 
       // 3. Calculate effects using the updated environment
       val tempRxForEffects = rx.copy(val_env = envAfterMainUpdate)
+       global.console.log(s"[nextEdge] Calculando efeitos para a aresta ${showEdge(edge)}...")
       val (toAct, toDeact, finalValEnv) = toOnOff(edge, tempRxForEffects)
 
       // 4. Create the next state with the final results

@@ -37,7 +37,7 @@ object CaosConfig2 extends Configurator[RxGraph]:
 
   var pdlFormulaInput: Option[html.Input] = None
   var pdlStateInput: Option[html.Input] = None
-
+  //Tenho problemas com espaço
   def getPdlFormulaContent(): String =
     pdlFormulaInput.map(_.value).getOrElse("")
 
@@ -107,9 +107,10 @@ object CaosConfig2 extends Configurator[RxGraph]:
   val examples = List(
     "Simple" -> "init s0\ns0 --> s1: a\ns1 --> s0: b\na  --! a: offA"
       -> "Basic example",
-    "Test" -> "int counter = 0\ninit start\nstart --> middle: step1 \\counter+=1 [counter < 2]\nmiddle --> endN: activateStep2 [counter == 1]"
+    "Conditions" -> "int counter = 0\ninit start\nstart --> middle: step1 \\counter+=1 [counter < 2]\nmiddle --> endN: activateStep2 [counter == 1]"
       -> "Basic example with counter updates and conditions",
-    
+    "Machine" -> "int money = 0\ninit idle\nidle --> idle: insert_50c \\money+=50\nidle --> idle: insert_1e \\money+=100\nidle --> coke: select_coke [money >= 150]\nidle --> candy: select_candy [money >= 100]\ncoke --> idle: dispense_coke \\money-=150\ncandy --> idle: dispense_candy \\money-=100\nselect_coke --! select_coke: too_much_money [money > 200]"
+      -> "Teste",
     "Counter" -> "init s0\ns0 --> s0: act\nact --! act: offAct disabled\nact ->> offAct: on1 disabled\nact ->> on1"
       -> "turns off a transition after 3 times.",
     "Penguim" -> "init Son_of_Tweetie\nSon_of_Tweetie --> Special_Penguin\nSpecial_Penguin --> Penguin: Penguim\nPenguin --> Bird: Bird\nBird --> Does_Fly: Fly\n\nBird --! Fly: noFly\nPenguim --! noFly"
@@ -209,6 +210,7 @@ object CaosConfig2 extends Configurator[RxGraph]:
     "Step-by-step(Anim)" -> Custom(
       divName = "cytoscapeMainContainer",
       reload = (stx: RxGraph) => {
+        global.console.log("Resultado do Parser2 (objeto RxGraph):", stx.toString)
         simulationHistory = List(stx)
         val fullJson = generateSimulationJson(stx)
         global.renderCytoscapeGraph("cytoscapeMainContainer", fullJson, true)
