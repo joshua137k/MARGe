@@ -21,16 +21,59 @@ object RxSemantics extends SOS[QName,RxGraph] {
       case None => done
 
 
-  def toOnOff(e: Edge, rx: RxGraph): (Edges, Edges) =
-    val frome = from(e, rx)
-    (frome.filter(e => rx.on(e._1) contains (e._2 -> e._3)).flatMap(e => rx.lbls(e._2)),
-      frome.filter(e => rx.off(e._1) contains (e._2 -> e._3)).flatMap(e => rx.lbls(e._2)))
+  /**
+   * Calculates the effects of a transition (which edges to activate/deactivate)
+   * while also evaluating conditions and applying updates on the triggered hyper-edges.
+   *
+   * @param e The main edge that triggered the effects.
+   * @param rx The current reactive graph state.
+   * @return A tuple containing (edges to activate, edges to deactivate, the updated variable environment).
+   */
+  def toOnOff(e: Edge, rx: RxGraph): (Edges, Edges, Map[QName, Int]) = {
+    val triggeredHyperEdges = from(e, rx)
+    var currentEnv = rx.val_env
+    var toActivate = Set.empty[Edge]
+    var toDeactivate = Set.empty[Edge]
+
+    for (hyperEdge <- triggeredHyperEdges) {
+      // Check the condition of the hyper-edge itself
+      val conditionHolds = rx.edgeConditions.getOrElse(hyperEdge, None) match {
+        case Some(cond) => evalCondition(cond, currentEnv)
+        case None => true // No condition means it always holds
+      }
+
+      if (conditionHolds) {
+        // If condition holds, apply the counter update of the hyper-edge
+        rx.edgeUpdates.getOrElse(hyperEdge, None) match {
+          case Some(CounterUpdate(variable, op, value)) =>
+            val currentVal = currentEnv.getOrElse(variable, 0)
+            op match {
+              case "+=" => currentEnv = currentEnv + (variable -> (currentVal + value))
+              case "-=" => currentEnv = currentEnv + (variable -> (currentVal - value))
+              case _    => // Should not happen
+            }
+          case None => // No update
+        }
+
+        // Determine if it's an 'on' or 'off' rule and add target edges accordingly
+        val ruleSource = hyperEdge._1
+        val ruleTarget = (hyperEdge._2, hyperEdge._3)
+        if (rx.on(ruleSource).contains(ruleTarget)) {
+          toActivate ++= rx.lbls(hyperEdge._2)
+        }
+        if (rx.off(ruleSource).contains(ruleTarget)) {
+          toDeactivate ++= rx.lbls(hyperEdge._2)
+        }
+      }
+    }
+    (toActivate, toDeactivate, currentEnv)
+  }
 
   private def evalCondition(condition: Condition, env: Map[QName, Int]): Boolean =
-    val leftVal = env.getOrElse(condition.left, 0) // Valor padrão 0 se a variável não for encontrada
+    val leftVal = env.getOrElse(condition.left, 0)
     val rightVal = condition.right match
       case Left(i) => i
-      case Right(qname) => env.getOrElse(qname, 0) // Valor padrão 0 se a variável não for encontrada
+      case Right(qname) => env.getOrElse(qname, 0)
 
     condition.op match
       case ">=" => leftVal >= rightVal
@@ -39,38 +82,12 @@ object RxSemantics extends SOS[QName,RxGraph] {
       case "!=" => leftVal != rightVal
       case ">"  => leftVal > rightVal
       case "<"  => leftVal < rightVal
-      case _    => false // Operador desconhecido
+      case _    => false
   
   /** Calulates the next possible init states */
   def next[Name >: QName](rx: RxGraph): Set[(Name, RxGraph)] =
-    for st <- rx.inits
-        (st2, lbl) <- rx.edg(st)
-        edge = (st, st2, lbl)
-        if rx.act(edge)
-        // Verifica a condição da aresta
-        conditionHolds = rx.edgeConditions.getOrElse(edge, None) match
-          case Some(cond) => evalCondition(cond, rx.val_env)
-          case None => true // Nenhuma condição, então ela sempre é satisfeita
-        if conditionHolds
-    yield
-      val (toAct, toDeact) = toOnOff(edge, rx)
-      val newAct = (rx.act ++ toAct) -- toDeact // biased to deactivation
-      val newInits = (rx.inits - st) + st2
+    nextEdge(rx).map(e => e._1._3 -> e._2)
 
-      // Apply counter update if present
-      var updatedValEnv = rx.val_env // Start with current environment
-      rx.edgeUpdates.getOrElse(edge, None) match { // Check for update associated with this specific edge
-        case Some(CounterUpdate(variable, op, value)) =>
-          val currentVal = updatedValEnv.getOrElse(variable, 0) // [1], [2], [3], [4], [5]
-          op match {
-            case "+=" => updatedValEnv = updatedValEnv + (variable -> (currentVal + value))
-            case "-=" => updatedValEnv = updatedValEnv + (variable -> (currentVal - value))
-            case _ => // Should not happen with current parser, but defensive programming
-          }
-        case None => // No counter update for this edge
-      }
-
-      lbl -> rx.copy(inits = newInits, act = newAct, val_env = updatedValEnv) 
 
   /** Similar to `next`, but include the full transition instead of only the action name */
   def nextEdge(rx: RxGraph): Set[(Edge, RxGraph)] =
@@ -78,28 +95,32 @@ object RxSemantics extends SOS[QName,RxGraph] {
         (st2, lbl) <- rx.edg(st)
         edge = (st, st2, lbl)
         if rx.act(edge)
-        // Verifica a condição da aresta
+        // 1. Check condition on the main edge
         conditionHolds = rx.edgeConditions.getOrElse(edge, None) match
           case Some(cond) => evalCondition(cond, rx.val_env)
           case None => true
         if conditionHolds
     yield
-      val (toAct, toDeact) = toOnOff(edge, rx)
+      // 2. Apply counter update for the main edge FIRST
+      var envAfterMainUpdate = rx.val_env
+      rx.edgeUpdates.getOrElse(edge, None) match {
+        case Some(CounterUpdate(variable, op, value)) =>
+          val currentVal = envAfterMainUpdate.getOrElse(variable, 0)
+          op match {
+            case "+=" => envAfterMainUpdate = envAfterMainUpdate + (variable -> (currentVal + value))
+            case "-=" => envAfterMainUpdate = envAfterMainUpdate + (variable -> (currentVal - value))
+            case _ =>
+          }
+        case None =>
+      }
+
+      // 3. Calculate effects using the updated environment
+      val tempRxForEffects = rx.copy(val_env = envAfterMainUpdate)
+      val (toAct, toDeact, finalValEnv) = toOnOff(edge, tempRxForEffects)
+
+      // 4. Create the next state with the final results
       val newAct = (rx.act ++ toAct) -- toDeact // biased to deactivation
       val newInits = (rx.inits - st) + st2
 
-      // Apply counter update if present
-      var updatedValEnv = rx.val_env // Start with current environment
-      rx.edgeUpdates.getOrElse(edge, None) match { // Check for update associated with this specific edge
-        case Some(CounterUpdate(variable, op, value)) =>
-          val currentVal = updatedValEnv.getOrElse(variable, 0) // [1], [2], [3], [4], [5]
-          op match {
-            case "+=" => updatedValEnv = updatedValEnv + (variable -> (currentVal + value))
-            case "-=" => updatedValEnv = updatedValEnv + (variable -> (currentVal - value))
-            case _ => // Should not happen with current parser, but defensive programming
-          }
-        case None => // No counter update for this edge
-      }
-
-      (st, st2, lbl) -> rx.copy(inits = newInits, act = newAct, val_env = updatedValEnv) // UPDATED
+      (st, st2, lbl) -> rx.copy(inits = newInits, act = newAct, val_env = finalValEnv)
 }

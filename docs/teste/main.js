@@ -1,5 +1,6 @@
 var currentCytoscapeInstance = null;
 
+
 function renderCytoscapeGraph(mainContainerId, combinedJsonData, isFirstRender) {
     var mainContainer = document.getElementById(mainContainerId);
     if (!mainContainer) {
@@ -74,7 +75,8 @@ function renderCytoscapeGraph(mainContainerId, combinedJsonData, isFirstRender) 
             elements: data.graphElements,
             style: [ 
                 { selector: 'node', style: { 'label': 'data(label)', 'text-valign': 'center', 'color': '#c0caf5', 'font-family': 'sans-serif', 'font-weight': 'bold', 'text-outline-width': 2, 'text-outline-color': '#1a1b26' } },
-                { selector: 'edge', style: { 'width': 2, 'curve-style': 'bezier', 'target-arrow-shape': 'triangle', 'line-color': '#565f89', 'target-arrow-color': '#565f89', 'line-style': 'solid' } },
+                { selector: 'edge', style: { 'width': 2, 'curve-style': 'bezier', 'target-arrow-shape': 'none', 'line-color': '#565f89', 'target-arrow-color': '#565f89', 'line-style': 'solid' } },
+                { selector: '.from-event-node', style: { 'target-arrow-shape': 'triangle' } },
                 { selector: '.disabled', style: { 'line-style': 'dashed', 'line-color': '#414868', 'target-arrow-color': '#414868' } },
                 { selector: 'edge[label]', style: { 'label': 'data(label)', 'font-size': '12px', 'color': '#c0caf5', 'text-background-color': '#24283b', 'text-background-opacity': 1, 'text-background-padding': '3px', 'text-background-shape': 'round-rectangle', 'text-rotation': 'autorotate', 'text-margin-y': -15 } },
                 { selector: '.state-node', style: { 'background-color': '#7aa2f7', 'shape': 'ellipse' } },
@@ -114,7 +116,16 @@ function renderCytoscapeGraph(mainContainerId, combinedJsonData, isFirstRender) 
                 { selector: 'node.transition-flash',style: {'background-color': '#ff9e64','border-color': 'white' }},
                 { selector: 'edge.transition-flash',style: {'line-color': '#ff9e64','target-arrow-color': '#ff9e64','source-arrow-color': '#ff9e64','width': 4}},
             ],
-            layout: { name: 'dagre', rankDir: 'LR', spacingFactor: 1.1, fit: true, padding: 30 }
+            layout: {
+                name: 'dagre',
+                rankDir: 'LR', 
+                fit: true,
+                padding: 50, 
+                spacingFactor: 1.2, 
+                nodeSep: 60,       
+                rankSep: 70,     
+                edgeSep: 10         
+            }
         });
 
         cy.on('tap', 'node.event-node.enabled', function(evt){

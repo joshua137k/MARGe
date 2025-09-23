@@ -57,6 +57,8 @@ object Parser2 :
   def program: P[RxGraph] =
     sps.with1 *> statements <* sps
 
+
+
   def statements: P[RxGraph] = P.recursive(rx =>
     statement(rx).repSep(sps)
       .map(res => res.toList.fold(RxGraph())(_ ++ _))
@@ -137,6 +139,9 @@ object Parser2 :
           }
       }
     }
+
+
+
 
   def arrow: P[(QName,QName,QName, Option[Condition], Option[CounterUpdate])=>RxGraph] = 
     P.string("-->").as(RxGraph().addEdge) |

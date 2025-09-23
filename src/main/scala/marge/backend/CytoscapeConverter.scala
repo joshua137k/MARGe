@@ -6,7 +6,6 @@ import marge.syntax.Program2.{Edge, QName, RxGraph}
 object CytoscapeConverter {
 
   def apply(rx: RxGraph): String = {
-    // 1. Initial partitioning (unchanged)
 
     val allSimpleEdges = rx.edg.flatMap { case (f, ts) => ts.map(t => (f, t._1, t._2)) }.toSet
     val (actionlessSimpleEdges, actionfulSimpleEdges) = allSimpleEdges.partition(_._3.n.isEmpty)
@@ -16,7 +15,6 @@ object CytoscapeConverter {
     
     val edgesThatAreNodes = actionfulSimpleEdges ++ allOnEdges.filterNot(_._3.n.isEmpty) ++ allOffEdges.filterNot(_._3.n.isEmpty)
 
-    // 2. Node creation (logic of parents, states, and events unchanged)
     val allNodeQNames = rx.states ++ edgesThatAreNodes.map(_._3) ++ rx.val_env.keys
     val parentNodes = allNodeQNames
       .flatMap(qname => (1 until qname.n.length).map(i => QName(qname.n.take(i))))
@@ -44,13 +42,15 @@ object CytoscapeConverter {
       s"""{ "data": { "id": "$id", "label": "$label", "parent": "$parent" }, "classes": "$classes" }"""
     }
 
-    // 3. Connection creation (logic of simple edges unchanged)
     val actionfulSimpleConnections = actionfulSimpleEdges.flatMap { edge =>
       val (from, to, lbl) = edge
       val edgeNodeId = s"${from}_${to}_${lbl}"
+      val isDisabled = !rx.act.contains(edge)
+      val disabledClass = if (isDisabled) " disabled" else ""
+
       List(
-        formatCyEdge(s"conn_s_${from}_${edgeNodeId}", from.toString, edgeNodeId, "", "simple-conn"),
-        formatCyEdge(s"conn_t_${edgeNodeId}_${to}", edgeNodeId, to.toString, "", "simple-conn")
+        formatCyEdge(s"conn_s_${from}_${edgeNodeId}", from.toString, edgeNodeId, "", "simple-conn" + disabledClass),
+        formatCyEdge(s"conn_t_${edgeNodeId}_${to}", edgeNodeId, to.toString, "", "simple-conn from-event-node" + disabledClass)
       )
     }
 
@@ -60,32 +60,34 @@ object CytoscapeConverter {
       formatCyEdge(id, from.toString, to.toString, "", "spontaneous-transition")
     }
     
-
     val hyperConnections = (allOnEdges ++ allOffEdges).flatMap { edge =>
       val (fromLabel, toLabel, connLabel) = edge
       
-      // Finds all event nodes that match the SOURCE label
       val fromEventNodes = edgesThatAreNodes.filter(e => e._3 == fromLabel)
       
-      // Finds all nodes (either event OR state) that match the TARGET label
-      // First, searches for event nodes
       var targetNodes = edgesThatAreNodes.filter(e => e._3 == toLabel).map(e => s"${e._1}_${e._2}_${e._3}")
-      // If no event node was found, checks if the target is a state node
       if (targetNodes.isEmpty && rx.states.contains(toLabel)) {
         targetNodes = Set(toLabel.toString)
       }
+
+      val isRuleDisabled = !rx.act.contains(edge)
+      val disabledClass = if (isRuleDisabled) " disabled" else ""
       
       for {
         fNode <- fromEventNodes
         tNodeId <- targetNodes
       } yield {
         val fromNodeId = s"${fNode._1}_${fNode._2}_${fNode._3}"
-        val (classes, label) = if (allOnEdges.contains(edge)) {
+        
+        val (baseClasses, label) = if (allOnEdges.contains(edge)) {
           ("rule-edge enable-rule", connLabel.show)
         } else {
           ("rule-edge disable-rule", connLabel.show)
         }
-        formatCyEdge(s"conn_h_${fromNodeId}_${tNodeId}", fromNodeId, tNodeId, label, classes)
+        
+        val finalClasses = s"$baseClasses from-event-node$disabledClass"
+        
+        formatCyEdge(s"conn_h_${fromNodeId}_${tNodeId}", fromNodeId, tNodeId, label, finalClasses)
       }
     }
 

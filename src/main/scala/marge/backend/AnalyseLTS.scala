@@ -49,7 +49,7 @@ object AnalyseLTS:
           var incons = Set[String]()
           var moreEdges: Edges = Set()
           for e<-newEdges do
-            val (toAct,toDeact) = RxSemantics.toOnOff(e, st)
+            val (toAct,toDeact, _) = RxSemantics.toOnOff(e, st)
             val fromE = RxSemantics.from(e,st)
             moreEdges ++= fromE
             val shared = toAct.intersect(toDeact)
