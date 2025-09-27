@@ -10,8 +10,14 @@ function renderCytoscapeGraph(mainContainerId, combinedJsonData, isFirstRender) 
 
     try {
         var data = JSON.parse(combinedJsonData);
+        console.log(data);
         if (isFirstRender){
             textTraceHistory = [];
+            const target = data.graphElements.find(
+            el => el.classes === "state-node current-state"
+            );
+            textTraceHistory.push(target.data.id);
+            
         }
         
         if (!isFirstRender && currentCytoscapeInstance) {
@@ -31,26 +37,18 @@ function renderCytoscapeGraph(mainContainerId, combinedJsonData, isFirstRender) 
                 var from = trans.from;
                 var to = trans.to;
                 var lbl = trans.lbl;
-                var elementsToFlash;
+                var actionNodeId = `event_${from}_${to}_${lbl}`;
+                var edgeToActionModeId = `s_to_a_${from}_${actionNodeId}`;
+                var edgeFromActionNodeId = `a_to_s_${actionNodeId}_${to}`;
+                var selector = `#${actionNodeId}, #${edgeToActionModeId}, #${edgeFromActionNodeId}`;
                 
-
-                if (lbl === "") {
-                    var edgeId = `#direct_${from}_${to}_`;
-                    elementsToFlash = currentCytoscapeInstance.getElementById(edgeId);
-                } else { 
-                    var eventNodeId = `${from}_${to}_${lbl}`;
-                    var eventNodeSelector = `#${eventNodeId}`;
-                    var edgeToEventSelector = `#conn_s_${from}_${eventNodeId}`;
-                    var edgeFromEventSelector = `#conn_t_${eventNodeId}_${to}`;
-                    
-                    elementsToFlash = currentCytoscapeInstance.elements(`${eventNodeSelector}, ${edgeToEventSelector}, ${edgeFromEventSelector}`);
-                }
+                var elementsToFlash = currentCytoscapeInstance.elements(selector);
 
                 if (elementsToFlash && elementsToFlash.length > 0) {
                     elementsToFlash.addClass('transition-flash');
                     setTimeout(function() {
                         elementsToFlash.removeClass('transition-flash');
-                    }, 500);
+                    }, 500); 
                 }
             }
             
@@ -86,48 +84,29 @@ function renderCytoscapeGraph(mainContainerId, combinedJsonData, isFirstRender) 
         var cy = cytoscape({
             container: graphDiv,
             elements: data.graphElements,
-            style: [ 
+             style: [ 
                 { selector: 'node', style: { 'label': 'data(label)', 'text-valign': 'center', 'color': '#c0caf5', 'font-family': 'sans-serif', 'font-weight': 'bold', 'text-outline-width': 2, 'text-outline-color': '#1a1b26' } },
-                { selector: 'edge', style: { 'width': 2, 'curve-style': 'bezier', 'target-arrow-shape': 'none', 'line-color': '#565f89', 'target-arrow-color': '#565f89', 'line-style': 'solid' } },
-                { selector: '.from-event-node', style: { 'target-arrow-shape': 'triangle' } },
-                { selector: '.disabled', style: { 'line-style': 'dashed', 'line-color': '#414868', 'target-arrow-color': '#414868' } },
-                { selector: 'edge[label]', style: { 'label': 'data(label)', 'font-size': '12px', 'color': '#c0caf5', 'text-background-color': '#24283b', 'text-background-opacity': 1, 'text-background-padding': '3px', 'text-background-shape': 'round-rectangle', 'text-rotation': 'autorotate', 'text-margin-y': -15 } },
-                { selector: '.state-node', style: { 'background-color': '#7aa2f7', 'shape': 'ellipse' } },
-                { selector: '.current-state', style: { 'background-color': '#9ece6a', 'border-color': '#c0caf5', 'border-width': 3, 'border-style': 'solid' } },
-                { selector: '.event-node', style: { 'background-color': '#565f89', 'shape': 'rectangle', 'width': '25px', 'height': '25px' } },
-                { selector: '.event-node.enabled', style: { 'background-color': '#ff9e64' } },
-                { selector: '.event-node.disabled', style: { 'background-color': '#565f89', 'opacity': 0.7 } },
-                { selector: '.compound-parent', style: { 'background-color': '#24283b', 'background-opacity': 0.5, 'border-color': '#414868', 'border-width': 2, 'content': 'data(label)', 'text-valign': 'top', 'color': '#c0caf5', 'text-outline-width': 0, 'font-weight': 'bold', 'font-size': '16px' } },
+                { selector: 'edge', style: { 'width': 2, 'curve-style': 'bezier', 'target-arrow-shape': 'triangle', 'line-color': '#565f89', 'target-arrow-color': '#565f89' } },
+
+                { selector: 'node.state-node', style: { 'background-color': '#7aa2f7', 'shape': 'ellipse', 'width': 50, 'height': 50, 'border-width': 3, 'border-color': '#414868' } },
+                { selector: '.current-state', style: { 'background-color': '#9ece6a', 'border-color': '#c0caf5' } },
+
+                { selector: 'node.event-node', style: { 'background-color': '#414868', 'shape': 'rectangle', 'width': 50, 'height': 30, 'border-width': 2, 'border-color': '#565f89' } },
                 
-                { selector: '.rule-edge', style: { 'width': 1.5, 'source-arrow-shape': 'circle' } },
-                { selector: '.enable-rule',
-                     style: { 
-                        'line-color': '#7aa2f7', 
-                        'target-arrow-color': '#7aa2f7', 
-                        'source-arrow-color': '#7aa2f7', 
-                        'color': '#7aa2f7', 
-                        'target-arrow-shape': 'circle-triangle', 
-                        'font-size': '12px',
-                        'target-text-offset': 5,
-                        
-                     } },
+                { selector: 'edge.rule-edge', style: { 'target-arrow-shape': 'none' } },
                 
-                { 
-                    selector: '.disable-rule', 
-                    style: { 
-                        'line-color': '#f7768e',
-                        'source-arrow-color': '#f7768e',
-                        'target-label': 'X', 
-                        'target-arrow-shape': 'none',
-                        'font-size': '12px',
-                        'color': '#f7768e',
-                        'target-text-offset': 5
-                    } 
-                },
+                { selector: '.enable-rule', style: { 'line-color': '#7aa2f7', 'target-arrow-color': '#7aa2f7' } },
+                { selector: 'edge.enable-rule.to-target', style: { 'target-arrow-shape': 'triangle' } },
+
+                { selector: '.disable-rule', style: { 'line-color': '#f7768e', 'target-arrow-color': '#f7768e' } },
+                { selector: 'edge.disable-rule.to-target', style: { 'target-label': 'X', 'target-text-offset': 5, 'color': '#f7768e' } },
+
+                { selector: '.disabled', style: { 'line-style': 'dashed', 'background-opacity': 0.6, 'border-style': 'dashed', 'opacity': 0.7 } },
                 
-                { selector: '.spontaneous-transition', style: {'line-color': '#7dcfff', 'target-arrow-color': '#7dcfff','line-style': 'dotted'}},
-                { selector: 'node.transition-flash',style: {'background-color': '#ff9e64','border-color': 'white' }},
-                { selector: 'edge.transition-flash',style: {'line-color': '#ff9e64','target-arrow-color': '#ff9e64','source-arrow-color': '#ff9e64','width': 4}},
+                { selector: 'node.transition-flash', style: {'background-color': '#ff9e64','border-color': 'white' }},
+                { selector: 'edge.transition-flash', style: {'line-color': '#ff9e64','target-arrow-color': '#ff9e64','source-arrow-color': '#ff9e64','width': 4}},
+                { selector: '.trace-path', style: { 'line-color': '#7dcfff', 'target-arrow-color': '#7dcfff', 'source-arrow-color': '#7dcfff', 'width': 3.5, 'opacity': 0.9 } },
+                { selector: '.compound-parent', style: { 'background-color': '#1a1b26', 'background-opacity': 1,      'border-color': '#c0caf5',   'border-width': 2,'content': 'data(label)', 'text-valign': 'top','text-halign': 'center','color': '#c0caf5','font-weight': 'bold','font-size': '16px'} },
             ],
             layout: {
                 name: 'dagre',
@@ -144,6 +123,7 @@ function renderCytoscapeGraph(mainContainerId, combinedJsonData, isFirstRender) 
         cy.on('tap', 'node.event-node.enabled', function(evt){
             var node = evt.target;
             var nodeId = node.id();
+            
             var parts = nodeId.split('_');
             if (parts.length >= 3) {
                 var from = parts[0];
@@ -244,12 +224,11 @@ function updateSidePanel(panelId, panelData) {
 
     layoutSelectorContainer.appendChild(layoutLabel);
     layoutSelectorContainer.appendChild(layoutSelector);
-    panelDiv.appendChild(layoutSelectorContainer); // Adiciona ao painel
+    panelDiv.appendChild(layoutSelectorContainer); 
 
     layoutSelector.onchange = function(event) {
         var layoutName = event.target.value;
         var layoutOptions;
-        // Pega as opções de layout que definimos acima
         if (layoutName === 'dagre') {
             layoutOptions = { name: 'dagre', rankDir: 'LR', fit: true, padding: 50, spacingFactor: 1.2, nodeSep: 60, rankSep: 70, edgeSep: 10 };
         } else if (layoutName === 'cose') {

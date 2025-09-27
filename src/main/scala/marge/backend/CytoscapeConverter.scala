@@ -1,107 +1,96 @@
 package marge.backend
 
-import marge.syntax.Program2.{Condition,Edge, QName, RxGraph}
-
+import marge.syntax.Program2.{Condition, Edge, QName, RxGraph}
 
 object CytoscapeConverter {
 
-
   def apply(rx: RxGraph): String = {
-
     val allSimpleEdges = rx.edg.flatMap { case (f, ts) => ts.map(t => (f, t._1, t._2)) }.toSet
-    val (actionlessSimpleEdges, actionfulSimpleEdges) = allSimpleEdges.partition(_._3.n.isEmpty)
-
     val allOnEdges = rx.on.flatMap { case (f, ts) => ts.map(t => (f, t._1, t._2)) }.toSet
     val allOffEdges = rx.off.flatMap { case (f, ts) => ts.map(t => (f, t._1, t._2)) }.toSet
-    
-    val edgesThatAreNodes = actionfulSimpleEdges ++ allOnEdges.filterNot(_._3.n.isEmpty) ++ allOffEdges.filterNot(_._3.n.isEmpty)
 
-    val allNodeQNames = rx.states ++ edgesThatAreNodes.map(_._3) ++ rx.val_env.keys
-    val parentNodes = allNodeQNames
-      .flatMap(qname => (1 until qname.n.length).map(i => QName(qname.n.take(i))))
-      .toSet
-      .map(parentQName => {
-        val id = parentQName.toString
-        val label = parentQName.n.last
-        s"""{ "data": { "id": "$id", "label": "$label" }, "classes": "compound-parent" }"""
-      })
+    val edgesThatCreateNodes = allSimpleEdges.filter(_.  _3.n.nonEmpty) ++ allOnEdges ++ allOffEdges
+
+
+    
+    val allQNames = rx.states ++ edgesThatCreateNodes.flatMap(e => Set(e._1, e._2, e._3))
+    val parentQNames = allQNames.flatMap(q => (1 until q.n.length).map(i => QName(q.n.take(i)))).toSet
+
+    val parentNodes = parentQNames.map { parentQName =>
+      val parentId = if (parentQName.n.size > 1) Some(parentQName.scope.toString) else None
+      val parentJson = parentId.map(p => s""", "parent": "$p"""").getOrElse("")
+      s"""{ "data": { "id": "${parentQName.toString}", "label": "${parentQName.n.last}" ${parentJson} }, "classes": "compound-parent" }"""
+    }
 
     val stateNodes = rx.states.map { state =>
-      val id = state.toString
-      val label = if (state.n.isEmpty) " " else state.n.last
-      val parent = if (state.n.size > 1) state.scope.toString else ""
+      val parentId = if (state.n.size > 1) Some(state.scope.toString) else None
+      val parentJson = parentId.map(p => s""", "parent": "$p"""").getOrElse("")
       val classes = "state-node " + (if (rx.inits.contains(state)) "current-state" else "")
-      s"""{ "data": { "id": "$id", "label": "$label", "parent": "$parent" }, "classes": "$classes" }"""
+      s"""{ "data": { "id": "${state.toString}", "label": "${state.show}" ${parentJson} }, "classes": "$classes" }"""
     }
 
-    val edgeNodes = edgesThatAreNodes.map { edge =>
+    val eventNodes = edgesThatCreateNodes.map { edge =>
       val (from, to, lbl) = edge
-      val id = s"${from}_${to}_${lbl}"
-      val label = lbl.show
-      val parent = if (lbl.n.size > 1) lbl.scope.toString else ""
-      val classes = "event-node " + (if (rx.act.contains(edge)) "enabled" else "disabled")
-      s"""{ "data": { "id": "$id", "label": "$label", "parent": "$parent" }, "classes": "$classes" }"""
+      val id = s"event_${from}_${to}_${lbl}"
+
+
+      val parentId = List(lbl, from, to)
+        .find(_.n.size > 1)
+        .map(_.scope.toString)
+      
+      val parentJson = parentId.map(p => s""", "parent": "$p"""").getOrElse("")
+      
+      val isEnabled = rx.act.contains(edge) && isConditionSatisfied(edge, rx)
+      val nodeTypeClass = if (allSimpleEdges.contains(edge)) "action-node" else "rule-node"
+      val classes = s"event-node $nodeTypeClass " + (if (isEnabled) "enabled" else "disabled")
+      s"""{ "data": { "id": "$id", "label": "${lbl.show}" ${parentJson} }, "classes": "$classes" }"""
     }
 
-    val actionfulSimpleConnections = actionfulSimpleEdges.flatMap { edge =>
+
+    val simpleConnections = allSimpleEdges.filter(_.  _3.n.nonEmpty).flatMap { edge =>
       val (from, to, lbl) = edge
-      val edgeNodeId = s"${from}_${to}_${lbl}"
-      val conditionHolds = rx.edgeConditions.getOrElse(edge, None).forall(cond => Condition.evaluate(cond, rx.val_env))
-      val isDisabled = !rx.act.contains(edge) || !conditionHolds
+      val actionNodeId = s"event_${from}_${to}_${lbl}"
+      val isDisabled = !rx.act.contains(edge) || !isConditionSatisfied(edge, rx)
       val disabledClass = if (isDisabled) " disabled" else ""
-
       List(
-        formatCyEdge(s"conn_s_${from}_${edgeNodeId}", from.toString, edgeNodeId, "", "simple-conn" + disabledClass),
-        formatCyEdge(s"conn_t_${edgeNodeId}_${to}", edgeNodeId, to.toString, "", "simple-conn from-event-node" + disabledClass)
+        formatCyEdge(s"s_to_a_${from}_${actionNodeId}", from.toString, actionNodeId, "", s"simple-conn$disabledClass"),
+        formatCyEdge(s"a_to_s_${actionNodeId}_${to}", actionNodeId, to.toString, "", s"simple-conn from-action-node$disabledClass")
       )
     }
 
-    val actionlessSimpleConnections = actionlessSimpleEdges.map { edge =>
-      val (from, to, lbl) = edge
-      val id = s"direct_${from}_${to}_${lbl}"
-      formatCyEdge(id, from.toString, to.toString, "", "spontaneous-transition")
-    }
-    
-    val hyperConnections = (allOnEdges ++ allOffEdges).flatMap { edge =>
-      val (fromLabel, toLabel, connLabel) = edge
-      
-      val fromEventNodes = edgesThatAreNodes.filter(e => e._3 == fromLabel)
-      
-      var targetNodes = edgesThatAreNodes.filter(e => e._3 == toLabel).map(e => s"${e._1}_${e._2}_${e._3}")
-      if (targetNodes.isEmpty && rx.states.contains(toLabel)) {
-        targetNodes = Set(toLabel.toString)
-      }
+    val hyperConnections = (allOnEdges ++ allOffEdges).flatMap { ruleEdge =>
+      val (fromLabel, toLabel, ruleName) = ruleEdge
+      val ruleNodeId = s"event_${fromLabel}_${toLabel}_${ruleName}"
 
-      val conditionHoldsRule = rx.edgeConditions.getOrElse(edge, None).forall(cond => Condition.evaluate(cond, rx.val_env))
-      val isRuleDisabled = !rx.act.contains(edge) || !conditionHoldsRule
+      val fromEventNodes = edgesThatCreateNodes.filter(_._3 == fromLabel)
+      val toEventNodes = edgesThatCreateNodes.filter(_._3 == toLabel)
+      
+      val isRuleDisabled = !rx.act.contains(ruleEdge) || !isConditionSatisfied(ruleEdge, rx)
       val disabledClass = if (isRuleDisabled) " disabled" else ""
-      
+      val ruleClass = if (allOnEdges.contains(ruleEdge)) "enable-rule" else "disable-rule"
+
       for {
-        fNode <- fromEventNodes
-        tNodeId <- targetNodes
+        fromNode <- fromEventNodes
+        toNode <- toEventNodes
       } yield {
-        val fromNodeId = s"${fNode._1}_${fNode._2}_${fNode._3}"
-        
-        val (baseClasses, label) = if (allOnEdges.contains(edge)) {
-          ("rule-edge enable-rule", connLabel.show)
-        } else {
-          ("rule-edge disable-rule", connLabel.show)
-        }
-        
-        val finalClasses = s"$baseClasses from-event-node$disabledClass"
-        
-        formatCyEdge(s"conn_h_${fromNodeId}_${tNodeId}", fromNodeId, tNodeId, label, finalClasses)
+        val fromNodeId = s"event_${fromNode._1}_${fromNode._2}_${fromNode._3}"
+        val toNodeId = s"event_${toNode._1}_${toNode._2}_${toNode._3}"
+        List(
+            formatCyEdge(s"rule_from_${fromNodeId}_${ruleNodeId}", fromNodeId, ruleNodeId, "", s"rule-edge $ruleClass$disabledClass"),
+            formatCyEdge(s"rule_to_${ruleNodeId}_${toNodeId}", ruleNodeId, toNodeId, "", s"rule-edge from-rule-node to-target $ruleClass$disabledClass")
+        )
       }
-    }
+    }.flatten
 
-
-    val allNodes = (parentNodes ++ stateNodes ++ edgeNodes).filter(_.nonEmpty).mkString(",\n")
-    val allConnections = (actionfulSimpleConnections ++ actionlessSimpleConnections ++ hyperConnections).filter(_.nonEmpty).mkString(",\n")
+    val allNodes = (parentNodes ++ stateNodes ++ eventNodes).filter(_.nonEmpty).mkString(",\n")
+    val allConnections = (simpleConnections ++ hyperConnections).filter(_.nonEmpty).mkString(",\n")
     
     s"""[ ${Seq(allNodes, allConnections).filter(_.nonEmpty).mkString(",\n")} ]"""
   }
 
-  private def formatCyEdge(id: String, source: String, target: String, label: String, classes: String): String = {
+  private def isConditionSatisfied(edge: Edge, rx: RxGraph): Boolean =
+    rx.edgeConditions.getOrElse(edge, None).forall(cond => Condition.evaluate(cond, rx.val_env))
+
+  private def formatCyEdge(id: String, source: String, target: String, label: String, classes: String): String =
     s"""{ "data": { "id": "$id", "source": "$source", "target": "$target", "label": "$label" }, "classes": "$classes" }"""
-  }
 }
