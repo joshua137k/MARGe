@@ -218,6 +218,13 @@ function $dp_compareTo__T__I(instance, x0) {
     return instance.compareTo__T__I(x0)
   }
 }
+function $dp_endsWith__T__Z(instance, x0) {
+  if (((typeof instance) === "string")) {
+    return $f_T__endsWith__T__Z(instance, x0)
+  } else {
+    return instance.endsWith__T__Z(x0)
+  }
+}
 function $dp_equals__O__Z(instance, x0) {
   switch ((typeof instance)) {
     case "string": {
@@ -10149,16 +10156,6 @@ function $m_Lmarge_backend_AnalyseLTS$() {
   };
   return $n_Lmarge_backend_AnalyseLTS$
 }
-function $p_Lmarge_backend_CytoscapeConverter$__isConditionSatisfied__T3__Lmarge_syntax_Program2$RxGraph__Z($thiz, edge, rx) {
-  var this$2 = $n($as_s_Option($n($n(rx).Lmarge_syntax_Program2$RxGraph__f_edgeConditions).getOrElse__O__F0__O(edge, new $c_sjsr_AnonFunction0((() => $m_s_None$())))));
-  if (this$2.isEmpty__Z()) {
-    return true
-  } else {
-    var arg1 = this$2.get__O();
-    var cond = $as_Lmarge_syntax_Program2$Condition(arg1);
-    return $m_Lmarge_syntax_Program2$Condition$().evaluate__Lmarge_syntax_Program2$Condition__sci_Map__Z(cond, $n(rx).Lmarge_syntax_Program2$RxGraph__f_val_env)
-  }
-}
 function $p_Lmarge_backend_CytoscapeConverter$__formatCyEdge__T__T__T__T__T__T($thiz, id, source, target, label, classes) {
   return (((((((((("{ \"data\": { \"id\": \"" + id) + "\", \"source\": \"") + source) + "\", \"target\": \"") + target) + "\", \"label\": \"") + label) + "\" }, \"classes\": \"") + classes) + "\" }")
 }
@@ -10381,7 +10378,7 @@ $c_Lmarge_backend_CytoscapeConverter$.prototype.apply__Lmarge_syntax_Program2$Rx
     };
     var this$50 = $n($$x3);
     var parentJson$2 = $as_T((this$50.isEmpty__Z() ? "" : this$50.get__O()));
-    var isEnabled = ($n($n(rx).Lmarge_syntax_Program2$RxGraph__f_act).contains__O__Z(edge$1) && $p_Lmarge_backend_CytoscapeConverter$__isConditionSatisfied__T3__Lmarge_syntax_Program2$RxGraph__Z(this, edge$1, rx));
+    var isEnabled = $n($n(rx).Lmarge_syntax_Program2$RxGraph__f_act).contains__O__Z(edge$1);
     var nodeTypeClass = ($n(allSimpleEdges).contains__O__Z(edge$1) ? "action-node" : "rule-node");
     var classes$1 = ((("event-node " + nodeTypeClass) + " ") + (isEnabled ? "enabled" : "disabled"));
     return (((((((("{ \"data\": { \"id\": \"" + id) + "\", \"label\": \"") + $n(lbl$2).show__T()) + "\" ") + parentJson$2) + " }, \"classes\": \"") + classes$1) + "\" }")
@@ -10411,22 +10408,59 @@ $c_Lmarge_backend_CytoscapeConverter$.prototype.apply__Lmarge_syntax_Program2$Rx
     var to$2$1 = $as_Lmarge_syntax_Program2$QName(\u03b42$___2);
     var lbl$2$1 = $as_Lmarge_syntax_Program2$QName(\u03b42$___3);
     var actionNodeId = ((((("event_" + from$2$1) + "_") + to$2$1) + "_") + lbl$2$1);
-    var isDisabled = ((!$n($n(rx).Lmarge_syntax_Program2$RxGraph__f_act).contains__O__Z(edge$3)) || (!$p_Lmarge_backend_CytoscapeConverter$__isConditionSatisfied__T3__Lmarge_syntax_Program2$RxGraph__Z(this, edge$3, rx)));
+    var isDisabled = (!$n($n(rx).Lmarge_syntax_Program2$RxGraph__f_act).contains__O__Z(edge$3));
     var disabledClass = (isDisabled ? " disabled" : "");
+    var this$53 = $n($as_s_Option($n($n(rx).Lmarge_syntax_Program2$RxGraph__f_edgeConditions).getOrElse__O__F0__O(edge$3, new $c_sjsr_AnonFunction0((() => $m_s_None$())))));
+    if (this$53.isEmpty__Z()) {
+      var $$x4 = $m_s_None$()
+    } else {
+      var arg1$6 = this$53.get__O();
+      var cond = $as_Lmarge_syntax_Program2$Condition(arg1$6);
+      matchResult6: {
+        var rightStr;
+        var x18 = $n(cond).Lmarge_syntax_Program2$Condition__f_right;
+        if ((x18 instanceof $c_s_util_Left)) {
+          var i = $uI($n($as_s_util_Left(x18)).s_util_Left__f_value);
+          var rightStr = ("" + i);
+          break matchResult6
+        };
+        if ((x18 instanceof $c_s_util_Right)) {
+          var q$2 = $as_Lmarge_syntax_Program2$QName($n($as_s_util_Right(x18)).s_util_Right__f_value);
+          var rightStr = $n(q$2).show__T();
+          break matchResult6
+        };
+        throw new $c_s_MatchError(x18)
+      };
+      var $$x4 = new $c_s_Some((((((("[" + $n($n(cond).Lmarge_syntax_Program2$Condition__f_left).show__T()) + " ") + $n(cond).Lmarge_syntax_Program2$Condition__f_op) + " ") + rightStr) + "]"))
+    };
+    var this$55 = $n($$x4);
+    var conditionLabel = $as_T((this$55.isEmpty__Z() ? "" : this$55.get__O()));
+    var this$56 = $n($as_s_Option($n($n(rx).Lmarge_syntax_Program2$RxGraph__f_edgeUpdates).getOrElse__O__F0__O(edge$3, new $c_sjsr_AnonFunction0((() => $m_s_None$())))));
+    if (this$56.isEmpty__Z()) {
+      var $$x5 = $m_s_None$()
+    } else {
+      var arg1$7 = this$56.get__O();
+      var upd = $as_Lmarge_syntax_Program2$CounterUpdate(arg1$7);
+      var this$57 = $n($n(upd).Lmarge_syntax_Program2$CounterUpdate__f_op);
+      var opSymbol = $as_T(this$57.split("=").join(""));
+      var $$x5 = new $c_s_Some((((((($n($n(upd).Lmarge_syntax_Program2$CounterUpdate__f_variable).show__T() + "' := ") + $n($n(upd).Lmarge_syntax_Program2$CounterUpdate__f_variable).show__T()) + " ") + opSymbol) + " ") + $n(upd).Lmarge_syntax_Program2$CounterUpdate__f_value))
+    };
+    var this$58 = $n($$x5);
+    var updateLabel = $as_T((this$58.isEmpty__Z() ? "" : this$58.get__O()));
     $n($m_s_package$().s_package$__f_List);
-    var $$x5 = $m_sr_ScalaRunTime$();
-    var this$53 = $n(from$2$1);
-    var this$54 = $n(this$53.Lmarge_syntax_Program2$QName__f_n);
-    var $$x4 = $p_Lmarge_backend_CytoscapeConverter$__formatCyEdge__T__T__T__T__T__T(this, ((("s_to_a_" + from$2$1) + "_") + actionNodeId), $f_sc_IterableOnceOps__mkString__T__T__T__T(this$54, "", "/", ""), actionNodeId, "", ("simple-conn" + disabledClass));
-    var this$55 = $n(to$2$1);
-    var this$56 = $n(this$55.Lmarge_syntax_Program2$QName__f_n);
-    var elems$2 = $n($$x5).wrapRefArray__AO__sci_ArraySeq(new ($d_T.getArrayOf().constr)([$$x4, $p_Lmarge_backend_CytoscapeConverter$__formatCyEdge__T__T__T__T__T__T(this, ((("a_to_s_" + actionNodeId) + "_") + to$2$1), actionNodeId, $f_sc_IterableOnceOps__mkString__T__T__T__T(this$56, "", "/", ""), "", ("simple-conn from-action-node" + disabledClass))]));
+    var $$x7 = $m_sr_ScalaRunTime$();
+    var this$59 = $n(from$2$1);
+    var this$60 = $n(this$59.Lmarge_syntax_Program2$QName__f_n);
+    var $$x6 = $p_Lmarge_backend_CytoscapeConverter$__formatCyEdge__T__T__T__T__T__T(this, ((("s_to_a_" + from$2$1) + "_") + actionNodeId), $f_sc_IterableOnceOps__mkString__T__T__T__T(this$60, "", "/", ""), actionNodeId, conditionLabel, ("simple-conn" + disabledClass));
+    var this$61 = $n(to$2$1);
+    var this$62 = $n(this$61.Lmarge_syntax_Program2$QName__f_n);
+    var elems$2 = $n($$x7).wrapRefArray__AO__sci_ArraySeq(new ($d_T.getArrayOf().constr)([$$x6, $p_Lmarge_backend_CytoscapeConverter$__formatCyEdge__T__T__T__T__T__T(this, ((("a_to_s_" + actionNodeId) + "_") + to$2$1), actionNodeId, $f_sc_IterableOnceOps__mkString__T__T__T__T(this$62, "", "/", ""), updateLabel, ("simple-conn from-action-node" + disabledClass))]));
     return $m_sci_Nil$().prependedAll__sc_IterableOnce__sci_List(elems$2)
   }))));
-  var this$58 = $n(allOnEdges);
-  var $$x6 = $as_sc_IterableOps($n(this$58.concat__sc_IterableOnce__sc_SetOps(allOffEdges)).flatMap__F1__O(new $c_sjsr_AnonFunction1(((ruleEdge) => {
+  var this$64 = $n(allOnEdges);
+  var $$x8 = $as_sc_IterableOps($n(this$64.concat__sc_IterableOnce__sc_SetOps(allOffEdges)).flatMap__F1__O(new $c_sjsr_AnonFunction1(((ruleEdge) => {
     var ruleEdge$1 = $as_T3(ruleEdge);
-    matchResult6: {
+    matchResult7: {
       var \u03b43$___1;
       var \u03b43$___2;
       var \u03b43$___3;
@@ -10437,7 +10471,7 @@ $c_Lmarge_backend_CytoscapeConverter$.prototype.apply__Lmarge_syntax_Program2$Rx
         var \u03b43$___1 = fromLabel;
         var \u03b43$___2 = toLabel;
         var \u03b43$___3 = ruleName;
-        break matchResult6
+        break matchResult7
       };
       throw new $c_s_MatchError(ruleEdge$1)
     };
@@ -10455,7 +10489,7 @@ $c_Lmarge_backend_CytoscapeConverter$.prototype.apply__Lmarge_syntax_Program2$Rx
       var x$2 = $n(_$6$1).T3__f__3;
       return ((x$2 === null) ? (toLabel$2 === null) : $dp_equals__O__Z($n(x$2), toLabel$2))
     }))));
-    var isRuleDisabled = ((!$n($n(rx).Lmarge_syntax_Program2$RxGraph__f_act).contains__O__Z(ruleEdge$1)) || (!$p_Lmarge_backend_CytoscapeConverter$__isConditionSatisfied__T3__Lmarge_syntax_Program2$RxGraph__Z(this, ruleEdge$1, rx)));
+    var isRuleDisabled = (!$n($n(rx).Lmarge_syntax_Program2$RxGraph__f_act).contains__O__Z(ruleEdge$1));
     var disabledClass$1 = (isRuleDisabled ? " disabled" : "");
     var ruleClass = ($n(allOnEdges).contains__O__Z(ruleEdge$1) ? "enable-rule" : "disable-rule");
     return $as_sc_IterableOnce($n(fromEventNodes).flatMap__F1__O(new $c_sjsr_AnonFunction1(((fromNode) => {
@@ -10470,32 +10504,32 @@ $c_Lmarge_backend_CytoscapeConverter$.prototype.apply__Lmarge_syntax_Program2$Rx
       }))))
     }))))
   }))));
-  var this$62 = $m_s_$less$colon$less$();
-  var hyperConnections = $as_sci_Set($n($$x6).flatten__F1__O(this$62.s_$less$colon$less$__f_singleton));
-  var this$63 = $n(parentNodes);
-  var this$64 = $n(this$63.concat__sc_IterableOnce__sc_SetOps(stateNodes));
-  var this$68 = $n($as_sc_IterableOnceOps($n(this$64.concat__sc_IterableOnce__sc_SetOps(eventNodes)).filter__F1__O(new $c_sjsr_AnonFunction1(((_$7) => {
+  var this$68 = $m_s_$less$colon$less$();
+  var hyperConnections = $as_sci_Set($n($$x8).flatten__F1__O(this$68.s_$less$colon$less$__f_singleton));
+  var this$69 = $n(parentNodes);
+  var this$70 = $n(this$69.concat__sc_IterableOnce__sc_SetOps(stateNodes));
+  var this$74 = $n($as_sc_IterableOnceOps($n(this$70.concat__sc_IterableOnce__sc_SetOps(eventNodes)).filter__F1__O(new $c_sjsr_AnonFunction1(((_$7) => {
     var _$7$1 = $as_T(_$7);
     $m_sc_StringOps$();
-    var this$67 = $n(_$7$1);
-    return (!(this$67 === ""))
+    var this$73 = $n(_$7$1);
+    return (!(this$73 === ""))
   })))));
-  var allNodes = $f_sc_IterableOnceOps__mkString__T__T__T__T(this$68, "", ",\n", "");
-  var this$69 = $n(simpleConnections);
-  var this$73 = $n($as_sc_IterableOnceOps($n(this$69.concat__sc_IterableOnce__sc_SetOps(hyperConnections)).filter__F1__O(new $c_sjsr_AnonFunction1(((_$8) => {
+  var allNodes = $f_sc_IterableOnceOps__mkString__T__T__T__T(this$74, "", ",\n", "");
+  var this$75 = $n(simpleConnections);
+  var this$79 = $n($as_sc_IterableOnceOps($n(this$75.concat__sc_IterableOnce__sc_SetOps(hyperConnections)).filter__F1__O(new $c_sjsr_AnonFunction1(((_$8) => {
     var _$8$1 = $as_T(_$8);
     $m_sc_StringOps$();
-    var this$72 = $n(_$8$1);
-    return (!(this$72 === ""))
+    var this$78 = $n(_$8$1);
+    return (!(this$78 === ""))
   })))));
-  var allConnections = $f_sc_IterableOnceOps__mkString__T__T__T__T(this$73, "", ",\n", "");
-  var this$77 = $n($as_sc_IterableOnceOps($n($n($m_s_package$().s_package$__f_Seq).apply__sci_Seq__sc_SeqOps($m_sr_ScalaRunTime$().wrapRefArray__AO__sci_ArraySeq(new ($d_T.getArrayOf().constr)([allNodes, allConnections])))).filter__F1__O(new $c_sjsr_AnonFunction1(((_$9) => {
+  var allConnections = $f_sc_IterableOnceOps__mkString__T__T__T__T(this$79, "", ",\n", "");
+  var this$83 = $n($as_sc_IterableOnceOps($n($n($m_s_package$().s_package$__f_Seq).apply__sci_Seq__sc_SeqOps($m_sr_ScalaRunTime$().wrapRefArray__AO__sci_ArraySeq(new ($d_T.getArrayOf().constr)([allNodes, allConnections])))).filter__F1__O(new $c_sjsr_AnonFunction1(((_$9) => {
     var _$9$1 = $as_T(_$9);
     $m_sc_StringOps$();
-    var this$76 = $n(_$9$1);
-    return (!(this$76 === ""))
+    var this$82 = $n(_$9$1);
+    return (!(this$82 === ""))
   })))));
-  return (("[ " + $f_sc_IterableOnceOps__mkString__T__T__T__T(this$77, "", ",\n", "")) + " ]")
+  return (("[ " + $f_sc_IterableOnceOps__mkString__T__T__T__T(this$83, "", ",\n", "")) + " ]")
 });
 var $d_Lmarge_backend_CytoscapeConverter$ = new $TypeData().initClass({
   Lmarge_backend_CytoscapeConverter$: 0
@@ -11726,6 +11760,7 @@ function $p_Lmarge_syntax_Parser2$__prettyError__T__Lcats_parse_Parser$Error__T(
 /** @constructor */
 function $c_Lmarge_syntax_Parser2$() {
   this.Lmarge_syntax_Parser2$__f_sps = null;
+  this.Lmarge_syntax_Parser2$__f_sep = null;
   $n_Lmarge_syntax_Parser2$ = this;
   var this$1 = $n($m_Lcats_parse_Parser$().charIn__sc_Iterable__Lcats_parse_Parser($m_s_Predef$().wrapString__T__sci_WrappedString(" \t\r\n")));
   var whitespace = $m_Lcats_parse_Parser$().void__Lcats_parse_Parser__Lcats_parse_Parser(this$1);
@@ -11754,7 +11789,10 @@ function $c_Lmarge_syntax_Parser2$() {
   var acc$1 = new $c_Lcats_parse_Accumulator0$$anon$5();
   $m_Lcats_parse_Parser$();
   var this$15 = new $c_Lcats_parse_Parser$Impl$Rep0(this$11, 2147483647, acc$1);
-  this.Lmarge_syntax_Parser2$__f_sps = $m_Lcats_parse_Parser$().void0__Lcats_parse_Parser0__Lcats_parse_Parser0(this$15)
+  this.Lmarge_syntax_Parser2$__f_sps = $m_Lcats_parse_Parser$().void0__Lcats_parse_Parser0__Lcats_parse_Parser0(this$15);
+  var this$16 = $n($m_Lcats_parse_Parser$().char__C__Lcats_parse_Parser(59));
+  var b$1 = this.Lmarge_syntax_Parser2$__f_sps;
+  this.Lmarge_syntax_Parser2$__f_sep = this$16.between__Lcats_parse_Parser0__Lcats_parse_Parser0__Lcats_parse_Parser(b$1, b$1)
 }
 $c_Lmarge_syntax_Parser2$.prototype = new $h_O();
 $c_Lmarge_syntax_Parser2$.prototype.constructor = $c_Lmarge_syntax_Parser2$;
@@ -11764,7 +11802,28 @@ function $h_Lmarge_syntax_Parser2$() {
 }
 $h_Lmarge_syntax_Parser2$.prototype = $c_Lmarge_syntax_Parser2$.prototype;
 $c_Lmarge_syntax_Parser2$.prototype.parseProgram__T__Lmarge_syntax_Program2$RxGraph = (function(str) {
-  var x1 = this.pp__Lcats_parse_Parser__T__s_util_Either(this.program__Lcats_parse_Parser(), str);
+  $m_sc_StringOps$();
+  $m_sc_StringOps$();
+  var this$7 = new $c_sc_StringOps$$anon$1(str, true);
+  var f = new $c_sjsr_AnonFunction1(((line) => {
+    var line$1 = $as_T(line);
+    var trimmedLine = $f_T__trim__T($n(line$1));
+    var this$5 = $n(trimmedLine);
+    if ((this$5 === "")) {
+      var $$x1 = true
+    } else {
+      var this$6 = $n(trimmedLine);
+      var $$x1 = ($uI(this$6.indexOf("{")) !== (-1))
+    };
+    if (($$x1 || $f_T__endsWith__T__Z($n(trimmedLine), ";"))) {
+      return line$1
+    } else {
+      return (line$1 + ";")
+    }
+  }));
+  var this$8 = new $c_sc_Iterator$$anon$9(this$7, f);
+  var processedStr = $f_sc_IterableOnceOps__mkString__T__T__T__T(this$8, "", "\n", "");
+  var x1 = this.pp__Lcats_parse_Parser__T__s_util_Either(this.program__Lcats_parse_Parser(), processedStr);
   if ((x1 instanceof $c_s_util_Left)) {
     var e = $as_T($n($as_s_util_Left(x1)).s_util_Left__f_value);
     $m_s_sys_package$().error__T__E(e)
@@ -11831,9 +11890,9 @@ $c_Lmarge_syntax_Parser2$.prototype.statements__Lcats_parse_Parser = (function()
   return $m_Lcats_parse_Parser$().recursive__F1__Lcats_parse_Parser(new $c_sjsr_AnonFunction1(((rx) => {
     var rx$1 = $as_Lcats_parse_Parser(rx);
     var this$2 = $n(this.statement__Lcats_parse_Parser__Lcats_parse_Parser(rx$1));
-    var sep = this.Lmarge_syntax_Parser2$__f_sps;
+    var sep = this.Lmarge_syntax_Parser2$__f_sep;
     var this$3 = $m_Lcats_parse_Parser$();
-    var this$7 = $n(this$3.repSep__Lcats_parse_Parser__I__Lcats_parse_Parser0__Lcats_parse_Parser(this$2, 1, sep));
+    var this$7 = $n($n(this$3.repSep__Lcats_parse_Parser__I__Lcats_parse_Parser0__Lcats_parse_Parser(this$2, 1, sep)).$less$times__Lcats_parse_Parser0__Lcats_parse_Parser($n(this.Lmarge_syntax_Parser2$__f_sep).$qmark__Lcats_parse_Parser0()));
     var fn = new $c_sjsr_AnonFunction1(((res) => {
       var res$1 = $as_Lcats_data_NonEmptyList(res);
       var this$4 = $n(res$1);
@@ -11953,14 +12012,14 @@ $c_Lmarge_syntax_Parser2$.prototype.intOrQName__Lcats_parse_Parser = (function()
   return this$6.orElse__Lcats_parse_Parser__Lcats_parse_Parser(that)
 });
 $c_Lmarge_syntax_Parser2$.prototype.condition__Lcats_parse_Parser = (function() {
-  var $$x1 = $n($m_Lcats_parse_Parser$().char__C__Lcats_parse_Parser(91)).$times$greater__Lcats_parse_Parser0__Lcats_parse_Parser(this.Lmarge_syntax_Parser2$__f_sps);
+  var $$x1 = $n($m_Lcats_parse_Parser$().string__T__Lcats_parse_Parser("if")).$times$greater__Lcats_parse_Parser0__Lcats_parse_Parser(this.Lmarge_syntax_Parser2$__f_sps);
   var this$1 = $n(this.qname__Lcats_parse_Parser());
   var that = $n(this.Lmarge_syntax_Parser2$__f_sps).$times$greater__Lcats_parse_Parser0__Lcats_parse_Parser0(this.comparisonOp__Lcats_parse_Parser());
   $m_Lcats_parse_Parser$();
   var this$4 = new $c_Lcats_parse_Parser$Impl$Prod(this$1, that);
   var that$1 = $n(this.Lmarge_syntax_Parser2$__f_sps).$times$greater__Lcats_parse_Parser0__Lcats_parse_Parser0(this.intOrQName__Lcats_parse_Parser());
   $m_Lcats_parse_Parser$();
-  var this$9 = $n($n($n($n($$x1).$times$greater__Lcats_parse_Parser0__Lcats_parse_Parser(new $c_Lcats_parse_Parser$Impl$Prod(this$4, that$1))).$less$times__Lcats_parse_Parser0__Lcats_parse_Parser(this.Lmarge_syntax_Parser2$__f_sps)).$less$times__Lcats_parse_Parser0__Lcats_parse_Parser($m_Lcats_parse_Parser$().char__C__Lcats_parse_Parser(93)));
+  var this$9 = $n($n($$x1).$times$greater__Lcats_parse_Parser0__Lcats_parse_Parser(new $c_Lcats_parse_Parser$Impl$Prod(this$4, that$1)));
   var fn = new $c_sjsr_AnonFunction1(((x$1) => {
     var x$1$1 = $as_T2(x$1);
     if ((x$1$1 !== null)) {
@@ -11976,36 +12035,57 @@ $c_Lmarge_syntax_Parser2$.prototype.condition__Lcats_parse_Parser = (function() 
   }));
   return $m_Lcats_parse_Parser$().map__Lcats_parse_Parser__F1__Lcats_parse_Parser(this$9, fn)
 });
-$c_Lmarge_syntax_Parser2$.prototype.counterOp__Lcats_parse_Parser = (function() {
-  var this$1 = $n($m_Lcats_parse_Parser$().string__T__Lcats_parse_Parser("+="));
-  var this$3 = $n($m_Lcats_parse_Parser$().as__Lcats_parse_Parser__O__Lcats_parse_Parser(this$1, "+="));
-  var this$2 = $n($m_Lcats_parse_Parser$().string__T__Lcats_parse_Parser("-="));
-  var that = $m_Lcats_parse_Parser$().as__Lcats_parse_Parser__O__Lcats_parse_Parser(this$2, "-=");
-  return this$3.orElse__Lcats_parse_Parser__Lcats_parse_Parser(that)
-});
 $c_Lmarge_syntax_Parser2$.prototype.counterUpdate__Lcats_parse_Parser = (function() {
-  var $$x1 = $n($m_Lcats_parse_Parser$().char__C__Lcats_parse_Parser(92)).$times$greater__Lcats_parse_Parser0__Lcats_parse_Parser(this.Lmarge_syntax_Parser2$__f_sps);
-  var this$1 = $n(this.qname__Lcats_parse_Parser());
-  var that = $n(this.Lmarge_syntax_Parser2$__f_sps).$times$greater__Lcats_parse_Parser0__Lcats_parse_Parser0(this.counterOp__Lcats_parse_Parser());
-  $m_Lcats_parse_Parser$();
-  var this$4 = new $c_Lcats_parse_Parser$Impl$Prod(this$1, that);
-  var that$1 = $n(this.Lmarge_syntax_Parser2$__f_sps).$times$greater__Lcats_parse_Parser0__Lcats_parse_Parser0(this.integer__Lcats_parse_Parser());
-  $m_Lcats_parse_Parser$();
-  var this$9 = $n($n($$x1).$times$greater__Lcats_parse_Parser0__Lcats_parse_Parser(new $c_Lcats_parse_Parser$Impl$Prod(this$4, that$1)));
-  var fn = new $c_sjsr_AnonFunction1(((x$1) => {
-    var x$1$1 = $as_T2(x$1);
-    if ((x$1$1 !== null)) {
-      var x25 = $as_T2($n(x$1$1)._1__O());
-      if ((x25 !== null)) {
-        var variable = $as_Lmarge_syntax_Program2$QName($n(x25)._1__O());
-        var op = $as_T($n(x25)._2__O());
-        var value = $uI($n(x$1$1)._2__O());
-        return new $c_Lmarge_syntax_Program2$CounterUpdate(variable, op, value)
-      }
-    };
-    throw new $c_s_MatchError(x$1$1)
+  var $$x2 = this.qname__Lcats_parse_Parser();
+  var this$1 = $n($m_Lcats_parse_Parser$().char__C__Lcats_parse_Parser(39));
+  var b = this.Lmarge_syntax_Parser2$__f_sps;
+  var $$x1 = $n($n($$x2).$less$times__Lcats_parse_Parser0__Lcats_parse_Parser(this$1.between__Lcats_parse_Parser0__Lcats_parse_Parser0__Lcats_parse_Parser(b, b)));
+  var this$2 = $n($m_Lcats_parse_Parser$().string__T__Lcats_parse_Parser(":="));
+  var b$1 = this.Lmarge_syntax_Parser2$__f_sps;
+  var lhsParser = $n($$x1).$less$times__Lcats_parse_Parser0__Lcats_parse_Parser(this$2.between__Lcats_parse_Parser0__Lcats_parse_Parser0__Lcats_parse_Parser(b$1, b$1));
+  var this$19 = $n(lhsParser);
+  var fn$2 = new $c_sjsr_AnonFunction1(((lhsVar) => {
+    var lhsVar$1 = $as_Lmarge_syntax_Program2$QName(lhsVar);
+    var this$4 = $n($m_Lcats_parse_Parser$().char__C__Lcats_parse_Parser(43));
+    var this$6 = $n($m_Lcats_parse_Parser$().as__Lcats_parse_Parser__O__Lcats_parse_Parser(this$4, "+="));
+    var this$5 = $n($m_Lcats_parse_Parser$().char__C__Lcats_parse_Parser(45));
+    var that = $m_Lcats_parse_Parser$().as__Lcats_parse_Parser__O__Lcats_parse_Parser(this$5, "-=");
+    var op = this$6.orElse__Lcats_parse_Parser__Lcats_parse_Parser(that);
+    var this$7 = $n($n(this.qname__Lcats_parse_Parser()).filter__F1__Lcats_parse_Parser(new $c_sjsr_AnonFunction1(((_$8) => {
+      var _$8$1 = $as_Lmarge_syntax_Program2$QName(_$8);
+      return ((_$8$1 === null) ? (lhsVar$1 === null) : $n(_$8$1).equals__O__Z(lhsVar$1))
+    }))));
+    var that$1 = $n(this.Lmarge_syntax_Parser2$__f_sps).$times$greater__Lcats_parse_Parser0__Lcats_parse_Parser0(op);
+    $m_Lcats_parse_Parser$();
+    var this$10 = new $c_Lcats_parse_Parser$Impl$Prod(this$7, that$1);
+    var that$2 = $n(this.Lmarge_syntax_Parser2$__f_sps).$times$greater__Lcats_parse_Parser0__Lcats_parse_Parser0(this.integer__Lcats_parse_Parser());
+    $m_Lcats_parse_Parser$();
+    var this$14 = new $c_Lcats_parse_Parser$Impl$Prod(this$10, that$2);
+    var fn = new $c_sjsr_AnonFunction1(((x$1) => {
+      var x$1$1 = $as_T2(x$1);
+      if ((x$1$1 !== null)) {
+        var x25 = $as_T2($n(x$1$1)._1__O());
+        if ((x25 !== null)) {
+          var parsedOp = $as_T($n(x25)._2__O());
+          var value = $uI($n(x$1$1)._2__O());
+          return new $c_Lmarge_syntax_Program2$CounterUpdate(lhsVar$1, parsedOp, value)
+        }
+      };
+      throw new $c_s_MatchError(x$1$1)
+    }));
+    var relativeRhs = $m_Lcats_parse_Parser$().map__Lcats_parse_Parser__F1__Lcats_parse_Parser(this$14, fn);
+    var this$16 = $n(this.integer__Lcats_parse_Parser());
+    var fn$1 = new $c_sjsr_AnonFunction1(((value$1) => {
+      var value$2 = $uI(value$1);
+      return new $c_Lmarge_syntax_Program2$CounterUpdate(lhsVar$1, ":=", value$2)
+    }));
+    var absoluteRhs = $m_Lcats_parse_Parser$().map__Lcats_parse_Parser__F1__Lcats_parse_Parser(this$16, fn$1);
+    var this$17 = $n(relativeRhs);
+    var this$18 = $n($m_Lcats_parse_Parser$().backtrack__Lcats_parse_Parser__Lcats_parse_Parser(this$17));
+    return this$18.orElse__Lcats_parse_Parser__Lcats_parse_Parser(absoluteRhs)
   }));
-  return $m_Lcats_parse_Parser$().map__Lcats_parse_Parser__F1__Lcats_parse_Parser(this$9, fn)
+  $m_Lcats_parse_Parser$();
+  return new $c_Lcats_parse_Parser$Impl$FlatMap(this$19, fn$2)
 });
 $c_Lmarge_syntax_Parser2$.prototype.edge__Lcats_parse_Parser = (function() {
   var this$2 = $n(this.qname__Lcats_parse_Parser());
@@ -12016,7 +12096,7 @@ $c_Lmarge_syntax_Parser2$.prototype.edge__Lcats_parse_Parser = (function() {
   var this$5 = new $c_Lcats_parse_Parser$Impl$Prod(this$2, that);
   var that$1 = this.qname__Lcats_parse_Parser();
   $m_Lcats_parse_Parser$();
-  var this$15 = new $c_Lcats_parse_Parser$Impl$Prod(this$5, that$1);
+  var this$16 = new $c_Lcats_parse_Parser$Impl$Prod(this$5, that$1);
   var fn = new $c_sjsr_AnonFunction1(((x$1) => {
     var x$1$1 = $as_T2(x$1);
     if ((x$1$1 !== null)) {
@@ -12026,10 +12106,18 @@ $c_Lmarge_syntax_Parser2$.prototype.edge__Lcats_parse_Parser = (function() {
         var arFunc = $as_F5($n(x40)._2__O());
         var n2 = $as_Lmarge_syntax_Program2$QName($n(x$1$1)._2__O());
         var labelP = $n($n($n($m_Lcats_parse_Parser$().char__C__Lcats_parse_Parser(58)).$times$greater__Lcats_parse_Parser0__Lcats_parse_Parser(this.Lmarge_syntax_Parser2$__f_sps)).$times$greater__Lcats_parse_Parser0__Lcats_parse_Parser(this.qname__Lcats_parse_Parser())).$qmark__Lcats_parse_Parser0();
-        var updateP = $n(this.counterUpdate__Lcats_parse_Parser()).$qmark__Lcats_parse_Parser0();
-        var conditionP = $n(this.condition__Lcats_parse_Parser()).$qmark__Lcats_parse_Parser0();
-        var disabledP = $n($m_Lcats_parse_Parser$().string__T__Lcats_parse_Parser("disabled")).$qmark__Lcats_parse_Parser0();
-        return $n($n($n($n(labelP).$tilde__Lcats_parse_Parser0__Lcats_parse_Parser0($n($n(this.Lmarge_syntax_Parser2$__f_sps).$times$greater__Lcats_parse_Parser0__Lcats_parse_Parser0(updateP)).$qmark__Lcats_parse_Parser0())).$tilde__Lcats_parse_Parser0__Lcats_parse_Parser0($n($n(this.Lmarge_syntax_Parser2$__f_sps).$times$greater__Lcats_parse_Parser0__Lcats_parse_Parser0(conditionP)).$qmark__Lcats_parse_Parser0())).$tilde__Lcats_parse_Parser0__Lcats_parse_Parser0($n($n(this.Lmarge_syntax_Parser2$__f_sps).$times$greater__Lcats_parse_Parser0__Lcats_parse_Parser0(disabledP)).$qmark__Lcats_parse_Parser0())).map__F1__Lcats_parse_Parser0(new $c_sjsr_AnonFunction1(((x$1$2) => {
+        var ev$3 = $n(this.Lmarge_syntax_Parser2$__f_sps);
+        var this$9 = $n($m_Lcats_parse_Parser$With1$().$times$greater$extension__Lcats_parse_Parser0__Lcats_parse_Parser__Lcats_parse_Parser(ev$3, this.condition__Lcats_parse_Parser()));
+        var condP = $n($m_Lcats_parse_Parser$().backtrack__Lcats_parse_Parser__Lcats_parse_Parser(this$9)).$qmark__Lcats_parse_Parser0();
+        var ev$4 = $n(this.Lmarge_syntax_Parser2$__f_sps);
+        var this$10 = $n($m_Lcats_parse_Parser$With1$().$times$greater$extension__Lcats_parse_Parser0__Lcats_parse_Parser__Lcats_parse_Parser(ev$4, this.counterUpdate__Lcats_parse_Parser()));
+        var updP = $n($m_Lcats_parse_Parser$().backtrack__Lcats_parse_Parser__Lcats_parse_Parser(this$10)).$qmark__Lcats_parse_Parser0();
+        var ev$5 = $n(this.Lmarge_syntax_Parser2$__f_sps);
+        var $$x1 = $m_Lcats_parse_Parser$With1$();
+        var this$11 = $n($m_Lcats_parse_Parser$().string__T__Lcats_parse_Parser("disabled"));
+        var this$12 = $n($n($$x1).$times$greater$extension__Lcats_parse_Parser0__Lcats_parse_Parser__Lcats_parse_Parser(ev$5, $m_Lcats_parse_Parser$().void__Lcats_parse_Parser__Lcats_parse_Parser(this$11)));
+        var disabledP = $n($m_Lcats_parse_Parser$().backtrack__Lcats_parse_Parser__Lcats_parse_Parser(this$12)).$qmark__Lcats_parse_Parser0();
+        return $n($n($n($n(labelP).$tilde__Lcats_parse_Parser0__Lcats_parse_Parser0(condP)).$tilde__Lcats_parse_Parser0__Lcats_parse_Parser0(updP)).$tilde__Lcats_parse_Parser0__Lcats_parse_Parser0(disabledP)).map__F1__Lcats_parse_Parser0(new $c_sjsr_AnonFunction1(((x$1$2) => {
           var x$1$3 = $as_T2(x$1$2);
           if ((x$1$3 !== null)) {
             var x33 = $as_T2($n(x$1$3)._1__O());
@@ -12037,37 +12125,28 @@ $c_Lmarge_syntax_Parser2$.prototype.edge__Lcats_parse_Parser = (function() {
               var x35 = $as_T2($n(x33)._1__O());
               if ((x35 !== null)) {
                 var lblOpt = $as_s_Option($n(x35)._1__O());
-                var updOptOpt = $as_s_Option($n(x35)._2__O());
-                var condOptOpt = $as_s_Option($n(x33)._2__O());
-                var disabledOptOpt = $as_s_Option($n(x$1$3)._2__O());
-                var this$9 = $n(lblOpt);
-                if (this$9.isEmpty__Z()) {
+                var condOpt = $as_s_Option($n(x35)._2__O());
+                var updOpt = $as_s_Option($n(x33)._2__O());
+                var disOpt = $as_s_Option($n(x$1$3)._2__O());
+                var this$13 = $n(lblOpt);
+                if (this$13.isEmpty__Z()) {
                   $n($m_s_package$().s_package$__f_List);
                   var elems = $m_sr_ScalaRunTime$().genericWrapArray__O__sci_ArraySeq(new ($d_sr_Nothing$.getArrayOf().constr)([]));
                   var n = $m_sci_Nil$().prependedAll__sc_IterableOnce__sci_List(elems);
-                  var $$x1 = new $c_Lmarge_syntax_Program2$QName(n)
+                  var $$x2 = new $c_Lmarge_syntax_Program2$QName(n)
                 } else {
-                  var $$x1 = this$9.get__O()
+                  var $$x2 = this$13.get__O()
                 };
-                var label = $as_Lmarge_syntax_Program2$QName($$x1);
-                var $$x2 = $n(updOptOpt);
-                var this$12 = $m_s_$less$colon$less$();
-                var upd = $n($$x2).flatten__s_$less$colon$less__s_Option(this$12.s_$less$colon$less$__f_singleton);
-                var $$x3 = $n(condOptOpt);
-                var this$13 = $m_s_$less$colon$less$();
-                var cond = $n($$x3).flatten__s_$less$colon$less__s_Option(this$13.s_$less$colon$less$__f_singleton);
-                var $$x4 = $n(disabledOptOpt);
-                var this$14 = $m_s_$less$colon$less$();
-                var disabled = $n($$x4).flatten__s_$less$colon$less__s_Option(this$14.s_$less$colon$less$__f_singleton);
-                var baseGraph = $as_Lmarge_syntax_Program2$RxGraph($n(arFunc).apply__O__O__O__O__O__O(n1, n2, label, cond, upd));
-                if ((disabled instanceof $c_s_Some)) {
-                  return $n(baseGraph).deactivate__Lmarge_syntax_Program2$QName__Lmarge_syntax_Program2$QName__Lmarge_syntax_Program2$QName__Lmarge_syntax_Program2$RxGraph(n1, n2, label)
+                var label = $as_Lmarge_syntax_Program2$QName($$x2);
+                var base = $as_Lmarge_syntax_Program2$RxGraph($n(arFunc).apply__O__O__O__O__O__O(n1, n2, label, condOpt, updOpt));
+                if ((disOpt instanceof $c_s_Some)) {
+                  return $n(base).deactivate__Lmarge_syntax_Program2$QName__Lmarge_syntax_Program2$QName__Lmarge_syntax_Program2$QName__Lmarge_syntax_Program2$RxGraph(n1, n2, label)
                 };
                 var x = $m_s_None$();
-                if ((x === disabled)) {
-                  return baseGraph
+                if ((x === disOpt)) {
+                  return base
                 };
-                throw new $c_s_MatchError(disabled)
+                throw new $c_s_MatchError(disOpt)
               }
             }
           };
@@ -12078,7 +12157,7 @@ $c_Lmarge_syntax_Parser2$.prototype.edge__Lcats_parse_Parser = (function() {
     throw new $c_s_MatchError(x$1$1)
   }));
   $m_Lcats_parse_Parser$();
-  return new $c_Lcats_parse_Parser$Impl$FlatMap(this$15, fn)
+  return new $c_Lcats_parse_Parser$Impl$FlatMap(this$16, fn)
 });
 $c_Lmarge_syntax_Parser2$.prototype.arrow__Lcats_parse_Parser = (function() {
   var this$2 = $n($m_Lcats_parse_Parser$().string__T__Lcats_parse_Parser("-->"));
@@ -20333,6 +20412,13 @@ function $h_Lcats_parse_Parser() {
   /*<skip>*/
 }
 $h_Lcats_parse_Parser.prototype = $c_Lcats_parse_Parser.prototype;
+$c_Lcats_parse_Parser.prototype.filter__F1__Lcats_parse_Parser = (function(fn) {
+  $n($m_s_package$().s_package$__f_Left);
+  var leftUnit = new $c_s_util_Left((void 0));
+  var $$x1 = $m_Lcats_parse_Parser$();
+  var fn$1 = new $c_sjsr_AnonFunction1(((a) => ($uZ($n(fn).apply__O__O(a)) ? ($n($m_s_package$().s_package$__f_Right), new $c_s_util_Right(a)) : leftUnit)));
+  return $n($$x1).select__Lcats_parse_Parser__Lcats_parse_Parser0__Lcats_parse_Parser($m_Lcats_parse_Parser$().map__Lcats_parse_Parser__F1__Lcats_parse_Parser(this, fn$1), $m_Lcats_parse_Parser$().Lcats_parse_Parser$__f_Fail)
+});
 $c_Lcats_parse_Parser.prototype.$times$greater__Lcats_parse_Parser0__Lcats_parse_Parser = (function(that) {
   var this$1 = $n($m_Lcats_parse_Parser$().void__Lcats_parse_Parser__Lcats_parse_Parser(this));
   $m_Lcats_parse_Parser$();
@@ -22226,6 +22312,71 @@ function $p_Lmarge_backend_RxSemantics$__from__sci_Set__sci_Set__Lmarge_syntax_P
     throw new $c_s_MatchError(x1)
   }
 }
+function $p_Lmarge_backend_RxSemantics$__getHyperEdgeEffects__T3__Lmarge_syntax_Program2$RxGraph__T3($thiz, e, rx) {
+  var triggeredHyperEdges = $thiz.from__T3__Lmarge_syntax_Program2$RxGraph__sci_Set(e, rx);
+  $n($m_s_Predef$().s_Predef$__f_Set);
+  var elem = $m_sci_Set$EmptySet$();
+  var toActivate = new $c_sr_ObjectRef(elem);
+  $n($m_s_Predef$().s_Predef$__f_Set);
+  var elem$1 = $m_sci_Set$EmptySet$();
+  var toDeactivate = new $c_sr_ObjectRef(elem$1);
+  $n($m_s_package$().s_package$__f_List);
+  var elem$2 = $m_sci_Nil$();
+  var updatesToApply = new $c_sr_ObjectRef(elem$2);
+  $n(triggeredHyperEdges).foreach__F1__V(new $c_sjsr_AnonFunction1(((hyperEdge) => {
+    var hyperEdge$1 = $as_T3(hyperEdge);
+    matchResult6: {
+      var conditionHolds;
+      var x18 = $as_s_Option($n($n(rx).Lmarge_syntax_Program2$RxGraph__f_edgeConditions).getOrElse__O__F0__O(hyperEdge$1, new $c_sjsr_AnonFunction0((() => $m_s_None$()))));
+      if ((x18 instanceof $c_s_Some)) {
+        var cond = $as_Lmarge_syntax_Program2$Condition($n($as_s_Some(x18)).s_Some__f_value);
+        var conditionHolds = $m_Lmarge_syntax_Program2$Condition$().evaluate__Lmarge_syntax_Program2$Condition__sci_Map__Z(cond, $n(rx).Lmarge_syntax_Program2$RxGraph__f_val_env);
+        break matchResult6
+      };
+      var x = $m_s_None$();
+      if ((x === x18)) {
+        var conditionHolds = true;
+        break matchResult6
+      };
+      throw new $c_s_MatchError(x18)
+    };
+    if (conditionHolds) {
+      var $$x1 = $n($n(rx).Lmarge_syntax_Program2$RxGraph__f_edgeUpdates).get__O__s_Option(hyperEdge$1);
+      var this$8 = $m_s_$less$colon$less$();
+      var this$9 = $n($n($$x1).flatten__s_$less$colon$less__s_Option(this$8.s_$less$colon$less$__f_singleton));
+      if ((!this$9.isEmpty__Z())) {
+        var arg1 = this$9.get__O();
+        var update = $as_Lmarge_syntax_Program2$CounterUpdate(arg1);
+        var this$10 = $n($as_sci_List(updatesToApply.sr_ObjectRef__f_elem));
+        var ev$11 = new $c_sci_$colon$colon(update, this$10);
+        updatesToApply.sr_ObjectRef__f_elem = ev$11;
+        ev$11 = null
+      };
+      var ruleSource = $as_Lmarge_syntax_Program2$QName($n(hyperEdge$1).T3__f__1);
+      var _1 = $n(hyperEdge$1).T3__f__2;
+      var _2 = $n(hyperEdge$1).T3__f__3;
+      var ruleTarget = new $c_T2(_1, _2);
+      if ($n($as_sc_SetOps($n($n(rx).Lmarge_syntax_Program2$RxGraph__f_on).apply__O__O(ruleSource))).contains__O__Z(ruleTarget)) {
+        var this$12 = $n($as_sci_Set(toActivate.sr_ObjectRef__f_elem));
+        var that = $as_sc_IterableOnce($n($n(rx).Lmarge_syntax_Program2$RxGraph__f_lbls).apply__O__O($n(hyperEdge$1).T3__f__2));
+        var ev$12 = $as_sci_Set(this$12.concat__sc_IterableOnce__sc_SetOps(that));
+        toActivate.sr_ObjectRef__f_elem = ev$12;
+        ev$12 = null
+      };
+      if ($n($as_sc_SetOps($n($n(rx).Lmarge_syntax_Program2$RxGraph__f_off).apply__O__O(ruleSource))).contains__O__Z(ruleTarget)) {
+        var this$13 = $n($as_sci_Set(toDeactivate.sr_ObjectRef__f_elem));
+        var that$1 = $as_sc_IterableOnce($n($n(rx).Lmarge_syntax_Program2$RxGraph__f_lbls).apply__O__O($n(hyperEdge$1).T3__f__2));
+        var ev$13 = $as_sci_Set(this$13.concat__sc_IterableOnce__sc_SetOps(that$1));
+        toDeactivate.sr_ObjectRef__f_elem = ev$13;
+        ev$13 = null
+      }
+    }
+  })));
+  var _1$1 = $as_sci_Set(toActivate.sr_ObjectRef__f_elem);
+  var _2$1 = $as_sci_Set(toDeactivate.sr_ObjectRef__f_elem);
+  var _3 = $as_sci_List(updatesToApply.sr_ObjectRef__f_elem);
+  return new $c_T3(_1$1, _2$1, _3)
+}
 /** @constructor */
 function $c_Lmarge_backend_RxSemantics$() {
   /*<skip>*/
@@ -22388,10 +22539,10 @@ $c_Lmarge_backend_RxSemantics$.prototype.nextEdge__Lmarge_syntax_Program2$RxGrap
     }))))).withFilter__F1__sc_WithFilter(new $c_sjsr_AnonFunction1(((x$1$3$1) => {
       var x$1$4 = $as_T2(x$1$3$1);
       if ((x$1$4 !== null)) {
-        var x25 = $as_T2($n(x$1$4)._1__O());
-        if ((x25 !== null)) {
-          $as_Lmarge_syntax_Program2$QName($n(x25)._1__O());
-          $as_Lmarge_syntax_Program2$QName($n(x25)._2__O());
+        var x28 = $as_T2($n(x$1$4)._1__O());
+        if ((x28 !== null)) {
+          $as_Lmarge_syntax_Program2$QName($n(x28)._1__O());
+          $as_Lmarge_syntax_Program2$QName($n(x28)._2__O());
           var edge$1 = $as_T3($n(x$1$4)._2__O());
           var this$4 = $n($n(rx).Lmarge_syntax_Program2$RxGraph__f_act);
           return this$4.contains__O__Z(edge$1)
@@ -22401,171 +22552,137 @@ $c_Lmarge_backend_RxSemantics$.prototype.nextEdge__Lmarge_syntax_Program2$RxGrap
     })))).map__F1__O(new $c_sjsr_AnonFunction1(((x$1$4$1) => {
       var x$1$5 = $as_T2(x$1$4$1);
       if ((x$1$5 !== null)) {
-        var x34 = $as_T2($n(x$1$5)._1__O());
-        if ((x34 !== null)) {
-          $as_Lmarge_syntax_Program2$QName($n(x34)._1__O());
-          $as_Lmarge_syntax_Program2$QName($n(x34)._2__O());
+        var x33 = $as_T2($n(x$1$5)._1__O());
+        if ((x33 !== null)) {
+          $as_Lmarge_syntax_Program2$QName($n(x33)._1__O());
+          $as_Lmarge_syntax_Program2$QName($n(x33)._2__O());
           var edge$2 = $as_T3($n(x$1$5)._2__O());
-          var $$x6 = console;
-          var s = ("[nextEdge] Considerando a aresta principal ativa: " + $m_Lmarge_syntax_Program2$().showEdge__T3__T(edge$2));
-          var x29 = $$x6.log(s);
-          var \u03b43$$2 = x29;
-          matchResult10: {
-            var conditionHolds;
-            var x30 = $as_s_Option($n($n(rx).Lmarge_syntax_Program2$RxGraph__f_edgeConditions).getOrElse__O__F0__O(edge$2, new $c_sjsr_AnonFunction0((() => $m_s_None$()))));
-            if ((x30 instanceof $c_s_Some)) {
-              var cond = $as_Lmarge_syntax_Program2$Condition($n($as_s_Some(x30)).s_Some__f_value);
-              var conditionHolds = $m_Lmarge_syntax_Program2$Condition$().evaluate__Lmarge_syntax_Program2$Condition__sci_Map__Z(cond, $n(rx).Lmarge_syntax_Program2$RxGraph__f_val_env);
-              break matchResult10
-            };
-            var x = $m_s_None$();
-            if ((x === x30)) {
-              var $$x7 = console;
-              var s$1 = (("[nextEdge] Aresta " + $m_Lmarge_syntax_Program2$().showEdge__T3__T(edge$2)) + " n\u00e3o possui condi\u00e7\u00e3o.");
-              $$x7.log(s$1);
-              var conditionHolds = true;
-              break matchResult10
-            };
-            throw new $c_s_MatchError(x30)
+          var this$5 = $n($as_s_Option($n($n(rx).Lmarge_syntax_Program2$RxGraph__f_edgeConditions).getOrElse__O__F0__O(edge$2, new $c_sjsr_AnonFunction0((() => $m_s_None$())))));
+          if (this$5.isEmpty__Z()) {
+            var conditionHolds = true
+          } else {
+            var arg1 = this$5.get__O();
+            var _$1 = $as_Lmarge_syntax_Program2$Condition(arg1);
+            var conditionHolds = $m_Lmarge_syntax_Program2$Condition$().evaluate__Lmarge_syntax_Program2$Condition__sci_Map__Z(_$1, $n(rx).Lmarge_syntax_Program2$RxGraph__f_val_env)
           };
-          return new $c_T3(x$1$5, \u03b43$$2, conditionHolds)
+          return new $c_T2(x$1$5, conditionHolds)
         }
       };
       throw new $c_s_MatchError(x$1$5)
     }))))).withFilter__F1__sc_WithFilter(new $c_sjsr_AnonFunction1(((x$1$5$1) => {
-      var x$1$6 = $as_T3(x$1$5$1);
+      var x$1$6 = $as_T2(x$1$5$1);
       if ((x$1$6 !== null)) {
-        var x39 = $as_T2($n(x$1$6).T3__f__1);
-        if ((x39 !== null)) {
-          var x42 = $as_T2($n(x39)._1__O());
-          if ((x42 !== null)) {
-            $as_Lmarge_syntax_Program2$QName($n(x42)._1__O());
-            $as_Lmarge_syntax_Program2$QName($n(x42)._2__O());
-            $as_T3($n(x39)._2__O());
-            var conditionHolds$1 = $uZ($n(x$1$6).T3__f__3);
+        var x38 = $as_T2($n(x$1$6)._1__O());
+        if ((x38 !== null)) {
+          var x40 = $as_T2($n(x38)._1__O());
+          if ((x40 !== null)) {
+            $as_Lmarge_syntax_Program2$QName($n(x40)._1__O());
+            $as_Lmarge_syntax_Program2$QName($n(x40)._2__O());
+            $as_T3($n(x38)._2__O());
+            var conditionHolds$1 = $uZ($n(x$1$6)._2__O());
             return conditionHolds$1
           }
         }
       };
       throw new $c_s_MatchError(x$1$6)
     })))).map__F1__O(new $c_sjsr_AnonFunction1(((x$1$6$1) => {
-      var x$1$7 = $as_T3(x$1$6$1);
+      var x$1$7 = $as_T2(x$1$6$1);
       if ((x$1$7 !== null)) {
-        var x62 = $as_T2($n(x$1$7).T3__f__1);
-        if ((x62 !== null)) {
-          var x65 = $as_T2($n(x62)._1__O());
-          if ((x65 !== null)) {
-            var st2$5 = $as_Lmarge_syntax_Program2$QName($n(x65)._1__O());
-            var lbl$5 = $as_Lmarge_syntax_Program2$QName($n(x65)._2__O());
-            var edge$4 = $as_T3($n(x62)._2__O());
-            $uZ($n(x$1$7).T3__f__3);
-            var envAfterMainUpdate = $n(rx).Lmarge_syntax_Program2$RxGraph__f_val_env;
-            matchResult15: {
-              var x50 = $as_s_Option($n($n(rx).Lmarge_syntax_Program2$RxGraph__f_edgeUpdates).getOrElse__O__F0__O(edge$4, new $c_sjsr_AnonFunction0((() => $m_s_None$()))));
-              if ((x50 instanceof $c_s_Some)) {
-                var x52 = $as_Lmarge_syntax_Program2$CounterUpdate($n($as_s_Some(x50)).s_Some__f_value);
-                if ((x52 !== null)) {
-                  var this$9 = $n(x52);
-                  var x54 = this$9.Lmarge_syntax_Program2$CounterUpdate__f_variable;
-                  var this$10 = $n(x52);
-                  var x55 = this$10.Lmarge_syntax_Program2$CounterUpdate__f_op;
-                  var this$11 = $n(x52);
-                  var x56 = this$11.Lmarge_syntax_Program2$CounterUpdate__f_value;
-                  var currentVal = $uI($n(envAfterMainUpdate).getOrElse__O__F0__O(x54, new $c_sjsr_AnonFunction0((() => 0))));
-                  if ((x55 === "+=")) {
-                    var $$x1 = envAfterMainUpdate;
-                    var y = ((currentVal + x56) | 0);
-                    envAfterMainUpdate = $as_sci_Map($n($$x1).$plus__T2__sci_MapOps(new $c_T2(x54, y)))
-                  } else if ((x55 === "-=")) {
-                    var $$x2 = envAfterMainUpdate;
-                    var y$1 = ((currentVal - x56) | 0);
-                    envAfterMainUpdate = $as_sci_Map($n($$x2).$plus__T2__sci_MapOps(new $c_T2(x54, y$1)))
-                  };
-                  var $$x4 = console;
-                  var $$x3 = new $c_Lmarge_syntax_Program2$CounterUpdate(x54, x55, x56);
-                  var this$17 = $n($as_sc_IterableOnceOps($n(envAfterMainUpdate).map__F1__O(new $c_sjsr_AnonFunction1(((x$1$2$1) => {
-                    var x$1$8 = $as_T2(x$1$2$1);
-                    if ((x$1$8 !== null)) {
-                      var k = $as_Lmarge_syntax_Program2$QName($n(x$1$8)._1__O());
-                      var v = $uI($n(x$1$8)._2__O());
-                      return ((k + "=") + v)
-                    };
-                    throw new $c_s_MatchError(x$1$8)
-                  })))));
-                  var s$2 = ((("[nextEdge] Aplicada atualiza\u00e7\u00e3o da aresta principal: " + $$x3) + ". Novo ambiente (tempor\u00e1rio): ") + $f_sc_IterableOnceOps__mkString__T__T__T__T(this$17, "", ", ", ""));
-                  $$x4.log(s$2);
-                  break matchResult15
+        var x50 = $as_T2($n(x$1$7)._1__O());
+        if ((x50 !== null)) {
+          var x52 = $as_T2($n(x50)._1__O());
+          if ((x52 !== null)) {
+            var st2$5 = $as_Lmarge_syntax_Program2$QName($n(x52)._1__O());
+            $as_Lmarge_syntax_Program2$QName($n(x52)._2__O());
+            var edge$4 = $as_T3($n(x50)._2__O());
+            $uZ($n(x$1$7)._2__O());
+            var $$x1 = $n($n(rx).Lmarge_syntax_Program2$RxGraph__f_edgeUpdates).get__O__s_Option(edge$4);
+            var this$7 = $m_s_$less$colon$less$();
+            var mainUpdate = $n($n($$x1).flatten__s_$less$colon$less__s_Option(this$7.s_$less$colon$less$__f_singleton)).toList__sci_List();
+            matchResult12: {
+              var \u03b43$___1;
+              var \u03b43$___2;
+              var \u03b43$___3;
+              var x44 = $p_Lmarge_backend_RxSemantics$__getHyperEdgeEffects__T3__Lmarge_syntax_Program2$RxGraph__T3(this, edge$4, rx);
+              if ((x44 !== null)) {
+                var toAct = $as_sci_Set($n(x44).T3__f__1);
+                var toDeact = $as_sci_Set($n(x44).T3__f__2);
+                var hyperUpdates = $as_sci_List($n(x44).T3__f__3);
+                var \u03b43$___1 = toAct;
+                var \u03b43$___2 = toDeact;
+                var \u03b43$___3 = hyperUpdates;
+                break matchResult12
+              };
+              throw new $c_s_MatchError(x44)
+            };
+            var toAct$2 = $as_sci_Set(\u03b43$___1);
+            var toDeact$2 = $as_sci_Set(\u03b43$___2);
+            var hyperUpdates$2 = $as_sci_List(\u03b43$___3);
+            var this$9 = $n(mainUpdate);
+            var allUpdates = this$9.appendedAll__sc_IterableOnce__sci_List(hyperUpdates$2);
+            var elem = $n(rx).Lmarge_syntax_Program2$RxGraph__f_val_env;
+            var elem$1 = null;
+            elem$1 = elem;
+            var this$11 = $n($n(allUpdates).reverse__sci_List());
+            var these = this$11;
+            while ((!$n(these).isEmpty__Z())) {
+              var arg1$1 = $n(these).head__O();
+              var update = $as_Lmarge_syntax_Program2$CounterUpdate(arg1$1);
+              var currentVal = $uI($n($as_sci_Map(elem$1)).getOrElse__O__F0__O($n(update).Lmarge_syntax_Program2$CounterUpdate__f_variable, new $c_sjsr_AnonFunction0((() => 0))));
+              var x48 = $n(update).Lmarge_syntax_Program2$CounterUpdate__f_op;
+              switch (x48) {
+                case "+=": {
+                  var $$x2 = $as_sci_Map(elem$1);
+                  var self = $n(update).Lmarge_syntax_Program2$CounterUpdate__f_variable;
+                  var y = ((currentVal + $n(update).Lmarge_syntax_Program2$CounterUpdate__f_value) | 0);
+                  var ev$14 = $as_sci_Map($n($$x2).$plus__T2__sci_MapOps(new $c_T2(self, y)));
+                  elem$1 = ev$14;
+                  ev$14 = null;
+                  break
+                }
+                case "-=": {
+                  var $$x3 = $as_sci_Map(elem$1);
+                  var self$1 = $n(update).Lmarge_syntax_Program2$CounterUpdate__f_variable;
+                  var y$1 = ((currentVal - $n(update).Lmarge_syntax_Program2$CounterUpdate__f_value) | 0);
+                  var ev$15 = $as_sci_Map($n($$x3).$plus__T2__sci_MapOps(new $c_T2(self$1, y$1)));
+                  elem$1 = ev$15;
+                  ev$15 = null;
+                  break
+                }
+                case ":=": {
+                  var $$x4 = $as_sci_Map(elem$1);
+                  var self$2 = $n(update).Lmarge_syntax_Program2$CounterUpdate__f_variable;
+                  var y$2 = $n(update).Lmarge_syntax_Program2$CounterUpdate__f_value;
+                  var ev$16 = $as_sci_Map($n($$x4).$plus__T2__sci_MapOps(new $c_T2(self$2, y$2)));
+                  elem$1 = ev$16;
+                  ev$16 = null;
+                  break
                 }
               };
-              var x$2 = $m_s_None$();
-              if ((x$2 === x50)) {
-                break matchResult15
-              };
-              throw new $c_s_MatchError(x50)
+              these = $as_sci_List($n(these).tail__O())
             };
-            var val_env$1 = envAfterMainUpdate;
-            var this$19 = $n(rx);
-            var edg$1 = this$19.Lmarge_syntax_Program2$RxGraph__f_edg;
-            var this$20 = $n(rx);
-            var on$1 = this$20.Lmarge_syntax_Program2$RxGraph__f_on;
-            var this$21 = $n(rx);
-            var off$1 = this$21.Lmarge_syntax_Program2$RxGraph__f_off;
+            var this$18 = $n($n(rx).Lmarge_syntax_Program2$RxGraph__f_act);
+            var this$19 = $n($as_sci_SetOps(this$18.concat__sc_IterableOnce__sc_SetOps(toAct$2)));
+            var newAct = $as_sci_Set(this$19.removedAll__sc_IterableOnce__sci_SetOps(toDeact$2));
+            var this$20 = $n($n(rx).Lmarge_syntax_Program2$RxGraph__f_inits);
+            var this$21 = $n(this$20.excl__O__sci_SetOps(st$1));
+            var newInits = $as_sci_Set(this$21.incl__O__sci_SetOps(st2$5));
+            var val_env$1 = $as_sci_Map(elem$1);
             var this$22 = $n(rx);
-            var lbls$1 = this$22.Lmarge_syntax_Program2$RxGraph__f_lbls;
+            var edg$1 = this$22.Lmarge_syntax_Program2$RxGraph__f_edg;
             var this$23 = $n(rx);
-            var inits$1 = this$23.Lmarge_syntax_Program2$RxGraph__f_inits;
+            var on$1 = this$23.Lmarge_syntax_Program2$RxGraph__f_on;
             var this$24 = $n(rx);
-            var act$1 = this$24.Lmarge_syntax_Program2$RxGraph__f_act;
+            var off$1 = this$24.Lmarge_syntax_Program2$RxGraph__f_off;
             var this$25 = $n(rx);
-            var edgeConditions$1 = this$25.Lmarge_syntax_Program2$RxGraph__f_edgeConditions;
+            var lbls$1 = this$25.Lmarge_syntax_Program2$RxGraph__f_lbls;
             var this$26 = $n(rx);
-            var edgeUpdates$1 = this$26.Lmarge_syntax_Program2$RxGraph__f_edgeUpdates;
+            var edgeConditions$1 = this$26.Lmarge_syntax_Program2$RxGraph__f_edgeConditions;
+            var this$27 = $n(rx);
+            var edgeUpdates$1 = this$27.Lmarge_syntax_Program2$RxGraph__f_edgeUpdates;
             $n(rx);
-            var tempRxForEffects = new $c_Lmarge_syntax_Program2$RxGraph(edg$1, on$1, off$1, lbls$1, inits$1, act$1, val_env$1, edgeConditions$1, edgeUpdates$1);
-            var $$x5 = console;
-            var s$3 = (("[nextEdge] Calculando efeitos para a aresta " + $m_Lmarge_syntax_Program2$().showEdge__T3__T(edge$4)) + "...");
-            $$x5.log(s$3);
-            matchResult16: {
-              var \u03b44$___1;
-              var \u03b44$___2;
-              var \u03b44$___3;
-              var x57 = this.toOnOff__T3__Lmarge_syntax_Program2$RxGraph__T3(edge$4, tempRxForEffects);
-              if ((x57 !== null)) {
-                var toAct = $as_sci_Set($n(x57).T3__f__1);
-                var toDeact = $as_sci_Set($n(x57).T3__f__2);
-                var finalValEnv = $as_sci_Map($n(x57).T3__f__3);
-                var \u03b44$___1 = toAct;
-                var \u03b44$___2 = toDeact;
-                var \u03b44$___3 = finalValEnv;
-                break matchResult16
-              };
-              throw new $c_s_MatchError(x57)
-            };
-            var toAct$2 = $as_sci_Set(\u03b44$___1);
-            var toDeact$2 = $as_sci_Set(\u03b44$___2);
-            var finalValEnv$2 = $as_sci_Map(\u03b44$___3);
-            var this$30 = $n($n(rx).Lmarge_syntax_Program2$RxGraph__f_act);
-            var this$31 = $n($as_sci_SetOps(this$30.concat__sc_IterableOnce__sc_SetOps(toAct$2)));
-            var newAct = $as_sci_Set(this$31.removedAll__sc_IterableOnce__sci_SetOps(toDeact$2));
-            var this$32 = $n($n(rx).Lmarge_syntax_Program2$RxGraph__f_inits);
-            var this$33 = $n(this$32.excl__O__sci_SetOps(st$1));
-            var newInits = $as_sci_Set(this$33.incl__O__sci_SetOps(st2$5));
-            var self = new $c_T3(st$1, st2$5, lbl$5);
-            $n(rx);
-            var this$36 = $n(rx);
-            var edg = this$36.Lmarge_syntax_Program2$RxGraph__f_edg;
-            var this$37 = $n(rx);
-            var on = this$37.Lmarge_syntax_Program2$RxGraph__f_on;
-            var this$38 = $n(rx);
-            var off = this$38.Lmarge_syntax_Program2$RxGraph__f_off;
-            var this$39 = $n(rx);
-            var lbls = this$39.Lmarge_syntax_Program2$RxGraph__f_lbls;
-            var this$40 = $n(rx);
-            var edgeConditions = this$40.Lmarge_syntax_Program2$RxGraph__f_edgeConditions;
-            var this$41 = $n(rx);
-            var edgeUpdates = this$41.Lmarge_syntax_Program2$RxGraph__f_edgeUpdates;
-            var y$2 = new $c_Lmarge_syntax_Program2$RxGraph(edg, on, off, lbls, newInits, newAct, finalValEnv$2, edgeConditions, edgeUpdates);
-            return new $c_T2(self, y$2)
+            var _2 = new $c_Lmarge_syntax_Program2$RxGraph(edg$1, on$1, off$1, lbls$1, newInits, newAct, val_env$1, edgeConditions$1, edgeUpdates$1);
+            return new $c_T2(edge$4, _2)
           }
         }
       };
@@ -22666,44 +22783,60 @@ function $c_Lmarge_frontend_CaosConfig2$() {
   this.Lmarge_frontend_CaosConfig2$__f_pdlStateInput = $m_s_None$();
   this.Lmarge_frontend_CaosConfig2$__f_simulationHistory = $m_s_package$().s_package$__f_Nil;
   $n($m_s_package$().s_package$__f_List);
-  var $$x21 = $m_sr_ScalaRunTime$();
-  var $$x20 = $m_Lcaos_frontend_Configurator$();
-  var self = new $c_T2("Simple", "init s0\ns0 --> s1: a\ns1 --> s0: b\na  --! a: offA");
-  var $$x19 = $n($$x20).toExampleDesc__T2__Lcaos_frontend_Configurator$Example(new $c_T2(self, "Basic example"));
-  var $$x18 = $m_Lcaos_frontend_Configurator$();
-  var self$1 = new $c_T2("Conditions", "int counter = 0\ninit start\nstart --> middle: step1 \\counter+=1 [counter < 2]\nmiddle --> endN: activateStep2 [counter == 1]");
-  var $$x17 = $n($$x18).toExampleDesc__T2__Lcaos_frontend_Configurator$Example(new $c_T2(self$1, "Basic example with counter updates and conditions"));
-  var $$x16 = $m_Lcaos_frontend_Configurator$();
-  var self$2 = new $c_T2("Machine", "int money = 0\ninit idle\nidle --> idle: insert_50c \\money+=50\nidle --> idle: insert_1e \\money+=100\nidle --> coke: select_coke [money >= 150]\nidle --> candy: select_candy [money >= 100]\ncoke --> idle: dispense_coke \\money-=150\ncandy --> idle: dispense_candy \\money-=100\nselect_coke --! select_coke: too_much_money [money > 200]");
-  var $$x15 = $n($$x16).toExampleDesc__T2__Lcaos_frontend_Configurator$Example(new $c_T2(self$2, "Teste"));
-  var $$x14 = $m_Lcaos_frontend_Configurator$();
-  var self$3 = new $c_T2("Counter", "init s0\ns0 --> s0: act\nact --! act: offAct disabled\nact ->> offAct: on1 disabled\nact ->> on1");
-  var $$x13 = $n($$x14).toExampleDesc__T2__Lcaos_frontend_Configurator$Example(new $c_T2(self$3, "turns off a transition after 3 times."));
-  var $$x12 = $m_Lcaos_frontend_Configurator$();
-  var self$4 = new $c_T2("Penguim", "init Son_of_Tweetie\nSon_of_Tweetie --> Special_Penguin\nSpecial_Penguin --> Penguin: Penguim\nPenguin --> Bird: Bird\nBird --> Does_Fly: Fly\n\nBird --! Fly: noFly\nPenguim --! noFly");
-  var $$x11 = $n($$x12).toExampleDesc__T2__Lcaos_frontend_Configurator$Example(new $c_T2(self$4, "Figure 7.4 in Dov M Gabbay, Cognitive Technologies Reactive Kripke Semantics"));
-  var $$x10 = $m_Lcaos_frontend_Configurator$();
-  var self$5 = new $c_T2("Vending (max eur1)", "init Insert\nInsert --> Coffee: ct50\nInsert --> Chocolate: eur1\nCoffee --> Insert: Get_coffee\nChocolate --> Insert: Get_choc\n\neur1 --! ct50\neur1 --! eur1\nct50 --! ct50: lastct50 disabled\nct50 --! eur1\nct50 ->> lastct50");
-  var $$x9 = $n($$x10).toExampleDesc__T2__Lcaos_frontend_Configurator$Example(new $c_T2(self$5, "Example of a vending machine, presented in a recently accepted companion paper at FACS 2024. There is a total of eur1 to be spent, and some transitions are deactivated when there is not enough money."));
-  var $$x8 = $m_Lcaos_frontend_Configurator$();
-  var self$6 = new $c_T2("Vending (max 3prod)", "init pay\npay --> select: insert_coin\nselect --> soda: ask_soda\nselect --> beer: ask_beer\nsoda --> pay: get_soda\nbeer --> pay: get_beer\n\nask_soda --! ask_soda: noSoda disabled\nask_beer --! ask_beer: noBeer\nask_soda ->> noSoda");
-  var $$x7 = $n($$x8).toExampleDesc__T2__Lcaos_frontend_Configurator$Example(new $c_T2(self$6, "Variation of an example of a vending machine, presented in a recently accepted companion paper at FACS 2024. There is a total of 1 beer and 2 sodas available."));
-  var nameCode = new $c_T2("Intrusive product", "aut s {\n  init i0\n  i0 --> i1: a\n  i1 --> i2: b\n  i2 --> i0: d disabled\n  a --! b\n}\naut w {\n  init i0\n  i0 --> i1: a\n  i1 --> i0: c\n  a --! a: noAs disabled\n  a ->> noAs\n}\n// intrusion\nw.c ->> s.b");
-  var example = $as_T(nameCode.T2__f__2);
-  var name = $as_T(nameCode.T2__f__1);
-  var $$x6 = new $c_Lcaos_frontend_Configurator$Example(example, name, "");
+  var $$x20 = $m_sr_ScalaRunTime$();
+  var $$x19 = $m_Lcaos_frontend_Configurator$();
+  $m_sc_StringOps$();
+  var y = $m_sc_StringOps$().stripMargin$extension__T__C__T("init s0\r\n      |s0 --> s1: a\r\n      |s1 --> s0: b\r\n      |a  --! a: offA", 124);
+  var self = new $c_T2("Simple", y);
+  var $$x18 = $n($$x19).toExampleDesc__T2__Lcaos_frontend_Configurator$Example(new $c_T2(self, "Basic example"));
+  var $$x17 = $m_Lcaos_frontend_Configurator$();
+  $m_sc_StringOps$();
+  var y$1 = $m_sc_StringOps$().stripMargin$extension__T__C__T("int counter = 0\r\n      |init start\r\n      |start --> middle: step1  if counter < 2 counter' := counter + 1\r\n      |middle --> endN: activateStep2 if counter == 1", 124);
+  var self$1 = new $c_T2("Conditions", y$1);
+  var $$x16 = $n($$x17).toExampleDesc__T2__Lcaos_frontend_Configurator$Example(new $c_T2(self$1, "Basic example with counter updates and conditions"));
+  var $$x15 = $m_Lcaos_frontend_Configurator$();
+  $m_sc_StringOps$();
+  var y$2 = $m_sc_StringOps$().stripMargin$extension__T__C__T("init s0\r\n      |s0 --> s0: act\r\n      |act --! act: offAct disabled\r\n      |act ->> offAct: on1 disabled\r\n      |act ->> on1", 124);
+  var self$2 = new $c_T2("Counter", y$2);
+  var $$x14 = $n($$x15).toExampleDesc__T2__Lcaos_frontend_Configurator$Example(new $c_T2(self$2, "turns off a transition after 3 times."));
+  var $$x13 = $m_Lcaos_frontend_Configurator$();
+  $m_sc_StringOps$();
+  var y$3 = $m_sc_StringOps$().stripMargin$extension__T__C__T("init Son_of_Tweetie\r\n      |Son_of_Tweetie --> Special_Penguin\r\n      |Special_Penguin --> Penguin: Penguim\r\n      |Penguin --> Bird: Bird\r\n      |Bird --> Does_Fly: Fly\r\n      |\r\n      |Bird --! Fly: noFly\r\n      |Penguim --! noFly", 124);
+  var self$3 = new $c_T2("Penguim", y$3);
+  var $$x12 = $n($$x13).toExampleDesc__T2__Lcaos_frontend_Configurator$Example(new $c_T2(self$3, "Figure 7.4 in Dov M Gabbay, Cognitive Technologies Reactive Kripke Semantics"));
+  var $$x11 = $m_Lcaos_frontend_Configurator$();
+  $m_sc_StringOps$();
+  var y$4 = $m_sc_StringOps$().stripMargin$extension__T__C__T("init Insert\r\n      |Insert --> Coffee: ct50\r\n      |Insert --> Chocolate: eur1\r\n      |Coffee --> Insert: GetCoffee\r\n      |Chocolate --> Insert: GetChoc\r\n      |\r\n      |eur1 --! ct50\r\n      |eur1 --! eur1\r\n      |ct50 --! ct50: lastct50 disabled\r\n      |ct50 --! eur1\r\n      |ct50 ->> lastct50", 124);
+  var self$4 = new $c_T2("Vending (max eur1)", y$4);
+  var $$x10 = $n($$x11).toExampleDesc__T2__Lcaos_frontend_Configurator$Example(new $c_T2(self$4, "Example of a vending machine, presented in a recently accepted companion paper at FACS 2024. There is a total of eur1 to be spent, and some transitions are deactivated when there is not enough money."));
+  var $$x9 = $m_Lcaos_frontend_Configurator$();
+  $m_sc_StringOps$();
+  var y$5 = $m_sc_StringOps$().stripMargin$extension__T__C__T("init pay\r\n      |pay --> select: insertCoin\r\n      |select --> soda: askSoda\r\n      |select --> beer: askBeer\r\n      |soda --> pay: getSoda\r\n      |beer --> pay: getBeer\r\n      |\r\n      |askSoda --! askSoda: noSoda disabled\r\n      |askBeer --! askBeer: noBeer\r\n      |askSoda ->> noSoda", 124);
+  var self$5 = new $c_T2("Vending (max 3prod)", y$5);
+  var $$x8 = $n($$x9).toExampleDesc__T2__Lcaos_frontend_Configurator$Example(new $c_T2(self$5, "Variation of an example of a vending machine, presented in a recently accepted companion paper at FACS 2024. There is a total of 1 beer and 2 sodas available."));
+  var $$x7 = $m_Lcaos_frontend_Configurator$();
+  $m_sc_StringOps$();
+  var y$6 = $m_sc_StringOps$().stripMargin$extension__T__C__T("aut s {\r\n      |  init i0\r\n      |  i0 --> i1: a\r\n      |  i1 --> i2: b\r\n      |  i2 --> i0: d disabled\r\n      |  a --! b\r\n      |}\r\n      |aut w {\r\n      |  init i0\r\n      |  i0 --> i1: a\r\n      |  i1 --> i0: c\r\n      |  a --! a: noAs disabled\r\n      |  a ->> noAs\r\n      |}\r\n      |// intrusion\r\n      |w.c ->> s.b", 124);
+  var self$6 = new $c_T2("Intrusive product", y$6);
+  var $$x6 = $n($$x7).toExampleDesc__T2__Lcaos_frontend_Configurator$Example(new $c_T2(self$6, "Intrusive product example"));
   var $$x5 = $m_Lcaos_frontend_Configurator$();
-  var self$7 = new $c_T2("Conflict", "init i0\ni0 --> i1: a\ni1 --> i2: b\ni2 --> i3: c disabled\n\na ->> b: on\non --! b: off");
+  $m_sc_StringOps$();
+  var y$7 = $m_sc_StringOps$().stripMargin$extension__T__C__T("init i0\r\n      |i0 --> i1: a\r\n      |i1 --> i2: b\r\n      |i2 --> i3: c disabled\r\n      |\r\n      |a ->> b: on\r\n      |on --! b: off", 124);
+  var self$7 = new $c_T2("Conflict", y$7);
   var $$x4 = $n($$x5).toExampleDesc__T2__Lcaos_frontend_Configurator$Example(new $c_T2(self$7, "Possible conflict detected in the analysis."));
   var $$x3 = $m_Lcaos_frontend_Configurator$();
-  var self$8 = new $c_T2("Dependencies", "aut A {\n  init i0\n  i0 --> i1: look\n  i1 --> i0: restart\n}\n\naut B {\n  init i0\n  i0 --> i1: on\n  i1 --> i2: goLeft disabled\n  i1 --> i2: goRight disabled\n  goLeft --#-- goRight\n  i2 --> i0: off\n}\n\n// dependencies\nA.look ----> B.goLeft\nA.look ----> B.goRight");
+  $m_sc_StringOps$();
+  var y$8 = $m_sc_StringOps$().stripMargin$extension__T__C__T("aut A {\r\n      |  init i0\r\n      |  i0 --> i1: look\r\n      |  i1 --> i0: restart\r\n      |}\r\n      |\r\n      |aut B {\r\n      |  init i0\r\n      |  i0 --> i1: on\r\n      |  i1 --> i2: goLeft disabled\r\n      |  i1 --> i2: goRight disabled\r\n      |  goLeft --#-- goRight\r\n      |  i2 --> i0: off\r\n      |}\r\n      |\r\n      |// dependencies\r\n      |A.look ----> B.goLeft\r\n      |A.look ----> B.goRight", 124);
+  var self$8 = new $c_T2("Dependencies", y$8);
   var $$x2 = $n($$x3).toExampleDesc__T2__Lcaos_frontend_Configurator$Example(new $c_T2(self$8, "Experimental syntax to describe dependencies, currently only as syntactic sugar."));
   var $$x1 = $m_Lcaos_frontend_Configurator$();
-  var self$9 = new $c_T2("Dynamic SPL", "init setup\nsetup --> setup: Safe\nsetup --> setup: Unsafe\nsetup --> setup: Encrypt\nsetup --> setup: Dencrypt\nsetup --> ready\nready --> setup\nready --> received: Receive\nreceived --> routed_safe: ERoute  disabled\nreceived --> routed_unsafe: Route\nrouted_safe --> sent: ESend       disabled\nrouted_unsafe --> sent: Send\nrouted_unsafe --> sent_encrypt: ESend disabled\nsent_encrypt --> ready: Ready\nsent --> ready: Ready\n\nSafe ->> ERoute\nSafe --! Route\nUnsafe --! ERoute\nUnsafe ->> Route\nEncrypt --! Send\nEncrypt ->> ESend\nDencrypt ->> Send\nDencrypt --! ESend");
-  var elems = $n($$x21).wrapRefArray__AO__sci_ArraySeq(new ($d_Lcaos_frontend_Configurator$Example.getArrayOf().constr)([$$x19, $$x17, $$x15, $$x13, $$x11, $$x9, $$x7, $$x6, $$x4, $$x2, $n($$x1).toExampleDesc__T2__Lcaos_frontend_Configurator$Example(new $c_T2(self$9, "Example of a Dynamic Software Product Line, borrowed from Fig 1 in Maxime Cordy et al. <em>Model Checking Adaptive Software with Featured Transition Systems</em>"))]));
+  $m_sc_StringOps$();
+  var y$9 = $m_sc_StringOps$().stripMargin$extension__T__C__T("init setup\r\n      |setup --> setup: Safe\r\n      |setup --> setup: Unsafe\r\n      |setup --> setup: Encrypt\r\n      |setup --> setup: Dencrypt\r\n      |setup --> ready\r\n      |ready --> setup\r\n      |ready --> received: Receive\r\n      |received --> routed_safe: ERoute  disabled\r\n      |received --> routed_unsafe: Route\r\n      |routed_safe --> sent: ESend       disabled\r\n      |routed_unsafe --> sent: Send\r\n      |routed_unsafe --> sent_encrypt: ESend disabled\r\n      |sent_encrypt --> ready: Ready\r\n      |sent --> ready: Ready\r\n      |\r\n      |Safe ->> ERoute\r\n      |Safe --! Route\r\n      |Unsafe --! ERoute\r\n      |Unsafe ->> Route\r\n      |Encrypt --! Send\r\n      |Encrypt ->> ESend\r\n      |Dencrypt ->> Send\r\n      |Dencrypt --! ESend", 124);
+  var self$9 = new $c_T2("Dynamic SPL", y$9);
+  var elems = $n($$x20).wrapRefArray__AO__sci_ArraySeq(new ($d_Lcaos_frontend_Configurator$Example.getArrayOf().constr)([$$x18, $$x16, $$x14, $$x12, $$x10, $$x8, $$x6, $$x4, $$x2, $n($$x1).toExampleDesc__T2__Lcaos_frontend_Configurator$Example(new $c_T2(self$9, "Example of a Dynamic Software Product Line, borrowed from Fig 1 in Maxime Cordy et al. <em>Model Checking Adaptive Software with Featured Transition Systems</em>"))]));
   this.Lmarge_frontend_CaosConfig2$__f_examples = $m_sci_Nil$().prependedAll__sc_IterableOnce__sci_List(elems);
   $n($m_s_package$().s_package$__f_List);
-  var $$x39 = $m_sr_ScalaRunTime$();
+  var $$x38 = $m_sr_ScalaRunTime$();
   var reload = new $c_sjsr_AnonFunction1(((stx) => {
     var stx$1 = $as_Lmarge_syntax_Program2$RxGraph(stx);
     var mainDiv = $m_Lorg_scalajs_dom_package$().document__Lorg_scalajs_dom_raw_HTMLDocument().getElementById("pdlCombinedArea");
@@ -22724,17 +22857,17 @@ function $c_Lmarge_frontend_CaosConfig2$() {
       stateInputElement.id = "pdlStateInput";
       stateInputElement.type = "text";
       stateInputElement.style.width = "100%";
-      var this$48 = $n($n(stx$1).Lmarge_syntax_Program2$RxGraph__f_inits);
-      var this$51 = $n($f_sc_IterableOps__headOption__s_Option(this$48));
+      var this$64 = $n($n(stx$1).Lmarge_syntax_Program2$RxGraph__f_inits);
+      var this$67 = $n($f_sc_IterableOps__headOption__s_Option(this$64));
       var f = new $c_sjsr_AnonFunction1(((_$5) => {
         var _$5$1 = $as_Lmarge_syntax_Program2$QName(_$5);
-        var this$49 = $n(_$5$1);
-        var this$50 = $n(this$49.Lmarge_syntax_Program2$QName__f_n);
-        return $f_sc_IterableOnceOps__mkString__T__T__T__T(this$50, "", "/", "")
+        var this$65 = $n(_$5$1);
+        var this$66 = $n(this$65.Lmarge_syntax_Program2$QName__f_n);
+        return $f_sc_IterableOnceOps__mkString__T__T__T__T(this$66, "", "/", "")
       }));
-      var this$52 = $n((this$51.isEmpty__Z() ? $m_s_None$() : new $c_s_Some(f.apply__O__O(this$51.get__O()))));
+      var this$68 = $n((this$67.isEmpty__Z() ? $m_s_None$() : new $c_s_Some(f.apply__O__O(this$67.get__O()))));
       var default$1 = new $c_sjsr_AnonFunction0((() => ""));
-      stateInputElement.value = $as_T((this$52.isEmpty__Z() ? default$1.apply__O() : this$52.get__O()));
+      stateInputElement.value = $as_T((this$68.isEmpty__Z() ? default$1.apply__O() : this$68.get__O()));
       var formulaLabel = $m_Lorg_scalajs_dom_package$().document__Lorg_scalajs_dom_raw_HTMLDocument().createElement("span");
       formulaLabel.textContent = "Formula:";
       var formulaInputElement = $m_Lorg_scalajs_dom_package$().document__Lorg_scalajs_dom_raw_HTMLDocument().createElement("input");
@@ -22750,51 +22883,51 @@ function $c_Lmarge_frontend_CaosConfig2$() {
       this.Lmarge_frontend_CaosConfig2$__f_pdlStateInput = new $c_s_Some(stateInputElement);
       this.Lmarge_frontend_CaosConfig2$__f_pdlFormulaInput = new $c_s_Some(formulaInputElement)
     } else {
-      var this$60 = $n(this.Lmarge_frontend_CaosConfig2$__f_pdlStateInput);
+      var this$76 = $n(this.Lmarge_frontend_CaosConfig2$__f_pdlStateInput);
       var f$2 = new $c_sjsr_AnonFunction1(((_$6) => {
-        var this$55 = $n($n(stx$1).Lmarge_syntax_Program2$RxGraph__f_inits);
-        var this$58 = $n($f_sc_IterableOps__headOption__s_Option(this$55));
+        var this$71 = $n($n(stx$1).Lmarge_syntax_Program2$RxGraph__f_inits);
+        var this$74 = $n($f_sc_IterableOps__headOption__s_Option(this$71));
         var f$1 = new $c_sjsr_AnonFunction1(((_$7) => {
           var _$7$1 = $as_Lmarge_syntax_Program2$QName(_$7);
-          var this$56 = $n(_$7$1);
-          var this$57 = $n(this$56.Lmarge_syntax_Program2$QName__f_n);
-          return $f_sc_IterableOnceOps__mkString__T__T__T__T(this$57, "", "/", "")
+          var this$72 = $n(_$7$1);
+          var this$73 = $n(this$72.Lmarge_syntax_Program2$QName__f_n);
+          return $f_sc_IterableOnceOps__mkString__T__T__T__T(this$73, "", "/", "")
         }));
-        var this$59 = $n((this$58.isEmpty__Z() ? $m_s_None$() : new $c_s_Some(f$1.apply__O__O(this$58.get__O()))));
+        var this$75 = $n((this$74.isEmpty__Z() ? $m_s_None$() : new $c_s_Some(f$1.apply__O__O(this$74.get__O()))));
         var default$2 = new $c_sjsr_AnonFunction0((() => ""));
-        _$6.value = $as_T((this$59.isEmpty__Z() ? default$2.apply__O() : this$59.get__O()))
+        _$6.value = $as_T((this$75.isEmpty__Z() ? default$2.apply__O() : this$75.get__O()))
       }));
-      if ((!this$60.isEmpty__Z())) {
-        f$2.apply__O__O(this$60.get__O())
+      if ((!this$76.isEmpty__Z())) {
+        f$2.apply__O__O(this$76.get__O())
       }
     }
   }));
   $n($m_s_package$().s_package$__f_List);
   var elems$1 = $m_sr_ScalaRunTime$().genericWrapArray__O__sci_ArraySeq(new ($d_sr_Nothing$.getArrayOf().constr)([]));
   var buttons = $m_sci_Nil$().prependedAll__sc_IterableOnce__sci_List(elems$1);
-  var this$63 = new $c_Lcaos_frontend_widgets_WidgetInfo$Custom("pdlCombinedArea", reload, buttons);
-  var y = $f_Lcaos_frontend_widgets_WidgetInfo__moveTo__I__Lcaos_frontend_widgets_WidgetInfo(this$63, 1);
-  var $$x38 = new $c_T2("PDL Analysis", y);
-  var this$77 = $n($m_Lcaos_frontend_Configurator$().view__F1__Lcaos_view_ViewType__Lcaos_frontend_widgets_WidgetInfo(new $c_sjsr_AnonFunction1(((rx) => {
+  var this$79 = new $c_Lcaos_frontend_widgets_WidgetInfo$Custom("pdlCombinedArea", reload, buttons);
+  var y$10 = $f_Lcaos_frontend_widgets_WidgetInfo__moveTo__I__Lcaos_frontend_widgets_WidgetInfo(this$79, 1);
+  var $$x37 = new $c_T2("PDL Analysis", y$10);
+  var this$93 = $n($m_Lcaos_frontend_Configurator$().view__F1__Lcaos_view_ViewType__Lcaos_frontend_widgets_WidgetInfo(new $c_sjsr_AnonFunction1(((rx) => {
     var rx$1 = $as_Lmarge_syntax_Program2$RxGraph(rx);
     var formulaString = this.getPdlFormulaContent__T();
     var stateString = this.getPdlStateContent__T();
-    var this$66 = $n($f_T__trim__T($n(formulaString)));
-    if ((this$66 === "")) {
+    var this$82 = $n($f_T__trim__T($n(formulaString)));
+    if ((this$82 === "")) {
       return "Enter a PDL formula."
     } else {
-      var this$67 = $n($f_T__trim__T($n(stateString)));
-      if ((this$67 === "")) {
+      var this$83 = $n($f_T__trim__T($n(stateString)));
+      if ((this$83 === "")) {
         return "Enter a start state."
       } else {
-        var this$68 = $n(stateString);
+        var this$84 = $n(stateString);
         var target = $as_T(String.fromCharCode(47));
         var replacement = $as_T(String.fromCharCode(46));
-        var this$71 = $n(target);
-        var $$x32 = this$68.split(this$71);
-        var this$72 = $n(replacement);
-        var $$x31 = $$x32.join(this$72);
-        var adaptedStateString = $as_T($$x31);
+        var this$87 = $n(target);
+        var $$x31 = this$84.split(this$87);
+        var this$88 = $n(replacement);
+        var $$x30 = $$x31.join(this$88);
+        var adaptedStateString = $as_T($$x30);
         var x16 = $m_Lmarge_syntax_Parser2$().pp__Lcats_parse_Parser__T__s_util_Either($m_Lmarge_syntax_Parser2$().qname__Lcats_parse_Parser(), adaptedStateString);
         if ((x16 instanceof $c_s_util_Left)) {
           var err = $as_T($n($as_s_util_Left(x16)).s_util_Left__f_value);
@@ -22803,25 +22936,25 @@ function $c_Lmarge_frontend_CaosConfig2$() {
         if ((x16 instanceof $c_s_util_Right)) {
           var startState = $as_Lmarge_syntax_Program2$QName($n($as_s_util_Right(x16)).s_util_Right__f_value);
           if ((!$n($n(rx$1).states__sci_Set()).contains__O__Z(startState))) {
-            var $$x33 = $n(startState).show__T();
-            var this$73 = $n($as_sc_IterableOnceOps($n($n(rx$1).states__sci_Set()).map__F1__O(new $c_sjsr_AnonFunction1(((_$8) => {
+            var $$x32 = $n(startState).show__T();
+            var this$89 = $n($as_sc_IterableOnceOps($n($n(rx$1).states__sci_Set()).map__F1__O(new $c_sjsr_AnonFunction1(((_$8) => {
               var _$8$1 = $as_Lmarge_syntax_Program2$QName(_$8);
               return $n(_$8$1).show__T()
             })))));
-            return ((("State '" + $$x33) + "' not found. Available: ") + $f_sc_IterableOnceOps__mkString__T__T__T__T(this$73, "", ", ", ""))
+            return ((("State '" + $$x32) + "' not found. Available: ") + $f_sc_IterableOnceOps__mkString__T__T__T__T(this$89, "", ", ", ""))
           } else {
             try {
-              var $$x34 = console;
+              var $$x33 = console;
               var s = ("formulaString:" + formulaString);
-              $$x34.log(s);
-              var $$x35 = console;
+              $$x33.log(s);
+              var $$x34 = console;
               var s$1 = ("startState:" + startState);
-              $$x35.log(s$1);
+              $$x34.log(s$1);
               var formula = $m_Lmarge_syntax_PdlParser$().parsePdlFormula__T__Lmarge_syntax_Formula(formulaString);
               var result = $m_Lmarge_backend_PdlEvaluator$().evaluateFormula__Lmarge_syntax_Program2$QName__Lmarge_syntax_Formula__Lmarge_syntax_Program2$RxGraph__Z(startState, formula, rx$1);
-              var $$x36 = console;
+              var $$x35 = console;
               var s$2 = ((((("From state: " + $n(startState).show__T()) + "\nFormula: ") + $n(formula).toString__T()) + "\nResult: ") + result);
-              $$x36.log(s$2);
+              $$x35.log(s$2);
               return ((((("From state: " + $n(startState).show__T()) + "\nFormula: ") + $n(formula).toString__T()) + "\nResult: ") + result)
             } catch (e) {
               var e$2 = ((e instanceof $c_jl_Throwable) ? e : new $c_sjs_js_JavaScriptException(e));
@@ -22833,13 +22966,13 @@ function $c_Lmarge_frontend_CaosConfig2$() {
       }
     }
   })), $m_Lcaos_view_Text$()));
-  var y$1 = $f_Lcaos_frontend_widgets_WidgetInfo__moveTo__I__Lcaos_frontend_widgets_WidgetInfo(this$77, 1);
-  var $$x37 = new $c_T2("PDL Evaluation Result", y$1);
+  var y$11 = $f_Lcaos_frontend_widgets_WidgetInfo__moveTo__I__Lcaos_frontend_widgets_WidgetInfo(this$93, 1);
+  var $$x36 = new $c_T2("PDL Evaluation Result", y$11);
   var reload$1 = new $c_sjsr_AnonFunction1(((stx$2) => {
     var stx$3 = $as_Lmarge_syntax_Program2$RxGraph(stx$2);
-    var $$x29 = console;
+    var $$x28 = console;
     var s$3 = $n(stx$3).toString__T();
-    $$x29.log("Resultado do Parser2 (objeto RxGraph):", s$3);
+    $$x28.log("Resultado do Parser2 (objeto RxGraph):", s$3);
     $n($m_s_package$().s_package$__f_List);
     var elems$2 = $m_sr_ScalaRunTime$().wrapRefArray__AO__sci_ArraySeq(new ($d_Lmarge_syntax_Program2$RxGraph.getArrayOf().constr)([stx$3]));
     this.Lmarge_frontend_CaosConfig2$__f_simulationHistory = $m_sci_Nil$().prependedAll__sc_IterableOnce__sci_List(elems$2);
@@ -22849,15 +22982,15 @@ function $c_Lmarge_frontend_CaosConfig2$() {
   $n($m_s_package$().s_package$__f_List);
   var elems$3 = $m_sr_ScalaRunTime$().genericWrapArray__O__sci_ArraySeq(new ($d_sr_Nothing$.getArrayOf().constr)([]));
   var buttons$1 = $m_sci_Nil$().prependedAll__sc_IterableOnce__sci_List(elems$3);
-  var this$88 = new $c_Lcaos_frontend_widgets_WidgetInfo$Custom("cytoscapeMainContainer", reload$1, buttons$1);
-  var y$2 = $f_Lcaos_frontend_widgets_WidgetInfo__expand__Lcaos_frontend_widgets_WidgetInfo(this$88);
-  var $$x30 = new $c_T2("Step-by-step(Anim)", y$2);
-  var y$3 = $m_Lcaos_frontend_Configurator$().view__F1__Lcaos_view_ViewType__Lcaos_frontend_widgets_WidgetInfo(new $c_sjsr_AnonFunction1(((_$9) => {
+  var this$104 = new $c_Lcaos_frontend_widgets_WidgetInfo$Custom("cytoscapeMainContainer", reload$1, buttons$1);
+  var y$12 = $f_Lcaos_frontend_widgets_WidgetInfo__expand__Lcaos_frontend_widgets_WidgetInfo(this$104);
+  var $$x29 = new $c_T2("Step-by-step(Anim)", y$12);
+  var y$13 = $m_Lcaos_frontend_Configurator$().view__F1__Lcaos_view_ViewType__Lcaos_frontend_widgets_WidgetInfo(new $c_sjsr_AnonFunction1(((_$9) => {
     var _$9$1 = $as_Lmarge_syntax_Program2$RxGraph(_$9);
     return $n(_$9$1).toString__T()
   })), $m_Lcaos_view_Text$());
-  var $$x28 = new $c_T2("View State", y$3);
-  var this$93 = $n($m_Lcaos_frontend_Configurator$().steps__F1__Lcaos_sos_SOS__F1__F1__Lcaos_view_ViewType__Lcaos_frontend_widgets_WidgetInfo(new $c_sjsr_AnonFunction1(((e$1) => {
+  var $$x27 = new $c_T2("View State", y$13);
+  var this$109 = $n($m_Lcaos_frontend_Configurator$().steps__F1__Lcaos_sos_SOS__F1__F1__Lcaos_view_ViewType__Lcaos_frontend_widgets_WidgetInfo(new $c_sjsr_AnonFunction1(((e$1) => {
     var e$3 = $as_Lmarge_syntax_Program2$RxGraph(e$1);
     return e$3
   })), $m_Lmarge_backend_RxSemantics$(), new $c_sjsr_AnonFunction1(((rx$2) => {
@@ -22867,9 +23000,9 @@ function $c_Lmarge_frontend_CaosConfig2$() {
     var _$10$1 = $as_Lmarge_syntax_Program2$QName(_$10);
     return $n(_$10$1).show__T()
   })), $m_Lcaos_view_Mermaid$()));
-  var y$4 = $f_Lcaos_frontend_widgets_WidgetInfo__expand__Lcaos_frontend_widgets_WidgetInfo(this$93);
-  var $$x27 = new $c_T2("Step-by-step", y$4);
-  var this$96 = $n($m_Lcaos_frontend_Configurator$().steps__F1__Lcaos_sos_SOS__F1__F1__Lcaos_view_ViewType__Lcaos_frontend_widgets_WidgetInfo(new $c_sjsr_AnonFunction1(((e$2$1) => {
+  var y$14 = $f_Lcaos_frontend_widgets_WidgetInfo__expand__Lcaos_frontend_widgets_WidgetInfo(this$109);
+  var $$x26 = new $c_T2("Step-by-step", y$14);
+  var this$112 = $n($m_Lcaos_frontend_Configurator$().steps__F1__Lcaos_sos_SOS__F1__F1__Lcaos_view_ViewType__Lcaos_frontend_widgets_WidgetInfo(new $c_sjsr_AnonFunction1(((e$2$1) => {
     var e$4 = $as_Lmarge_syntax_Program2$RxGraph(e$2$1);
     return e$4
   })), $m_Lmarge_backend_RxSemantics$(), new $c_sjsr_AnonFunction1(((rx$3$1) => {
@@ -22879,9 +23012,9 @@ function $c_Lmarge_frontend_CaosConfig2$() {
     var _$11$1 = $as_Lmarge_syntax_Program2$QName(_$11);
     return $n(_$11$1).show__T()
   })), $m_Lcaos_view_Mermaid$()));
-  var y$5 = $f_Lcaos_frontend_widgets_WidgetInfo__expand__Lcaos_frontend_widgets_WidgetInfo(this$96);
-  var $$x26 = new $c_T2("Step-by-step (simpler)", y$5);
-  var y$6 = $m_Lcaos_frontend_Configurator$().steps__F1__Lcaos_sos_SOS__F1__F1__Lcaos_view_ViewType__Lcaos_frontend_widgets_WidgetInfo(new $c_sjsr_AnonFunction1(((e$3$1) => {
+  var y$15 = $f_Lcaos_frontend_widgets_WidgetInfo__expand__Lcaos_frontend_widgets_WidgetInfo(this$112);
+  var $$x25 = new $c_T2("Step-by-step (simpler)", y$15);
+  var y$16 = $m_Lcaos_frontend_Configurator$().steps__F1__Lcaos_sos_SOS__F1__F1__Lcaos_view_ViewType__Lcaos_frontend_widgets_WidgetInfo(new $c_sjsr_AnonFunction1(((e$3$1) => {
     var e$5 = $as_Lmarge_syntax_Program2$RxGraph(e$3$1);
     return e$5
   })), $m_Lmarge_backend_RxSemantics$(), new $c_sjsr_AnonFunction1(((_$12) => {
@@ -22891,33 +23024,33 @@ function $c_Lmarge_frontend_CaosConfig2$() {
     var _$13$1 = $as_Lmarge_syntax_Program2$QName(_$13);
     return $n(_$13$1).show__T()
   })), $m_Lcaos_view_Text$());
-  var $$x25 = new $c_T2("Step-by-step (txt)", y$6);
-  var y$7 = $m_Lcaos_frontend_Configurator$().lts__F1__Lcaos_sos_SOS__F1__F1__I__Lcaos_frontend_widgets_WidgetInfo(new $c_sjsr_AnonFunction1(((e$4$1) => {
+  var $$x24 = new $c_T2("Step-by-step (txt)", y$16);
+  var y$17 = $m_Lcaos_frontend_Configurator$().lts__F1__Lcaos_sos_SOS__F1__F1__I__Lcaos_frontend_widgets_WidgetInfo(new $c_sjsr_AnonFunction1(((e$4$1) => {
     var e$6 = $as_Lmarge_syntax_Program2$RxGraph(e$4$1);
     return e$6
   })), $m_Lmarge_backend_RxSemantics$(), new $c_sjsr_AnonFunction1(((x) => {
     var x$1 = $as_Lmarge_syntax_Program2$RxGraph(x);
-    var this$101 = $n($n(x$1).Lmarge_syntax_Program2$RxGraph__f_inits);
-    return $f_sc_IterableOnceOps__mkString__T__T__T__T(this$101, "", ",", "")
+    var this$117 = $n($n(x$1).Lmarge_syntax_Program2$RxGraph__f_inits);
+    return $f_sc_IterableOnceOps__mkString__T__T__T__T(this$117, "", ",", "")
   })), new $c_sjsr_AnonFunction1(((_$14) => {
     var _$14$1 = $as_Lmarge_syntax_Program2$QName(_$14);
-    var this$102 = $n(_$14$1);
-    var this$103 = $n(this$102.Lmarge_syntax_Program2$QName__f_n);
-    return $f_sc_IterableOnceOps__mkString__T__T__T__T(this$103, "", "/", "")
+    var this$118 = $n(_$14$1);
+    var this$119 = $n(this$118.Lmarge_syntax_Program2$QName__f_n);
+    return $f_sc_IterableOnceOps__mkString__T__T__T__T(this$119, "", "/", "")
   })), 80);
-  var $$x24 = new $c_T2("All steps", y$7);
-  var y$8 = $m_Lcaos_frontend_Configurator$().view__F1__Lcaos_view_ViewType__Lcaos_frontend_widgets_WidgetInfo(new $c_sjsr_AnonFunction1(((r) => {
+  var $$x23 = new $c_T2("All steps", y$17);
+  var y$18 = $m_Lcaos_frontend_Configurator$().view__F1__Lcaos_view_ViewType__Lcaos_frontend_widgets_WidgetInfo(new $c_sjsr_AnonFunction1(((r) => {
     var r$1 = $as_Lmarge_syntax_Program2$RxGraph(r);
     var x21 = $as_sci_List($n($m_Lmarge_backend_AnalyseLTS$().randomWalk__Lmarge_syntax_Program2$RxGraph__I__T4(r$1, 5000)).T4__f__4);
     var x$2 = $m_s_package$().s_package$__f_Nil;
     if (((x$2 === null) ? (x21 === null) : $n(x$2).equals__O__Z(x21))) {
       return "No deadlocks, unreachable states/edges, nor inconsistencies"
     };
-    var this$106 = $n(x21);
-    return $f_sc_IterableOnceOps__mkString__T__T__T__T(this$106, "", "\n", "")
+    var this$122 = $n(x21);
+    return $f_sc_IterableOnceOps__mkString__T__T__T__T(this$122, "", "\n", "")
   })), $m_Lcaos_view_Text$());
-  var $$x23 = new $c_T2("Possible problems", y$8);
-  var y$9 = $m_Lcaos_frontend_Configurator$().view__F1__Lcaos_view_ViewType__Lcaos_frontend_widgets_WidgetInfo(new $c_sjsr_AnonFunction1(((e$5$1) => {
+  var $$x22 = new $c_T2("Possible problems", y$18);
+  var y$19 = $m_Lcaos_frontend_Configurator$().view__F1__Lcaos_view_ViewType__Lcaos_frontend_widgets_WidgetInfo(new $c_sjsr_AnonFunction1(((e$5$1) => {
     var e$7 = $as_Lmarge_syntax_Program2$RxGraph(e$5$1);
     matchResult6$1: {
       var \u03b45$;
@@ -22966,12 +23099,12 @@ function $c_Lmarge_frontend_CaosConfig2$() {
       throw new $c_s_MatchError(x$1$7)
     }))))).sum__s_math_Numeric__O($m_s_math_Numeric$IntIsIntegral$()))) | 0)) + "\n== Encoded LTS ==\n") + ((!done$2) ? "Stopped after traversing 2000 states" : ((("States: " + $n(st$2).size__I()) + "\nEdges: ") + eds$2)))
   })), $m_Lcaos_view_Text$());
-  var $$x22 = new $c_T2("Number of states and edges", y$9);
-  var y$10 = $m_Lcaos_frontend_Configurator$().view__F1__Lcaos_view_ViewType__Lcaos_frontend_widgets_WidgetInfo(new $c_sjsr_AnonFunction1(((rx$4$1) => {
+  var $$x21 = new $c_T2("Number of states and edges", y$19);
+  var y$20 = $m_Lcaos_frontend_Configurator$().view__F1__Lcaos_view_ViewType__Lcaos_frontend_widgets_WidgetInfo(new $c_sjsr_AnonFunction1(((rx$4$1) => {
     var rx$5 = $as_Lmarge_syntax_Program2$RxGraph(rx$4$1);
     return $m_Lmarge_backend_MCRL2$().apply__Lmarge_syntax_Program2$RxGraph__T(rx$5)
   })), $m_Lcaos_view_Text$());
-  var elems$4 = $n($$x39).wrapRefArray__AO__sci_ArraySeq(new ($d_T2.getArrayOf().constr)([$$x38, $$x37, $$x30, $$x28, $$x27, $$x26, $$x25, $$x24, $$x23, $$x22, new $c_T2("mCRL2 experiments", y$10)]));
+  var elems$4 = $n($$x38).wrapRefArray__AO__sci_ArraySeq(new ($d_T2.getArrayOf().constr)([$$x37, $$x36, $$x29, $$x27, $$x26, $$x25, $$x24, $$x23, $$x22, $$x21, new $c_T2("mCRL2 experiments", y$20)]));
   this.Lmarge_frontend_CaosConfig2$__f_widgets = $m_sci_Nil$().prependedAll__sc_IterableOnce__sci_List(elems$4);
   this.Lmarge_frontend_CaosConfig2$__f_footer = ($m_sc_StringOps$(), $m_sc_StringOps$().stripMargin$extension__T__C__T("Source code at: <a target=\"_blank\"\r\n      | href=\"https://github.com/fm-dcc/marge\">\r\n      | https://github.com/fm-dcc/marge</a>. This is a companion tool for\r\n      | a paper accepted at FACS 2024, based on <a target=\"_blank\"\r\n      | href=\"https://github.com/arcalab/CAOS\">\r\n      | CAOS</a>. The original version used for FACS can be found at <a target=\"_blank\"\r\n      | href=\"https://fm-dcc.github.io/MARGe/marge-0.1.html\">\r\n      | https://fm-dcc.github.io/MARGe/marge-0.1.html</a>.", 124));
   $m_sc_StringOps$();
@@ -25556,6 +25689,26 @@ $c_Lcats_parse_Parser$.prototype.map__Lcats_parse_Parser__F1__Lcats_parse_Parser
   };
   return new $c_Lcats_parse_Parser$Impl$Map(p, fn)
 });
+$c_Lcats_parse_Parser$.prototype.select__Lcats_parse_Parser__Lcats_parse_Parser0__Lcats_parse_Parser = (function(p, fn) {
+  var this$3 = new $c_Lcats_parse_Parser$Impl$Select(p, fn);
+  var fn$2 = new $c_sjsr_AnonFunction1(((x$1) => {
+    var x$1$1 = $as_s_util_Either(x$1);
+    if ((x$1$1 instanceof $c_s_util_Left)) {
+      var x444 = $as_T2($n($as_s_util_Left(x$1$1)).s_util_Left__f_value);
+      if ((x444 !== null)) {
+        var a = $n(x444)._1__O();
+        var fn$1 = $as_F1($n(x444)._2__O());
+        return $n(fn$1).apply__O__O(a)
+      }
+    };
+    if ((x$1$1 instanceof $c_s_util_Right)) {
+      var b = $n($as_s_util_Right(x$1$1)).s_util_Right__f_value;
+      return b
+    };
+    throw new $c_s_MatchError(x$1$1)
+  }));
+  return $m_Lcats_parse_Parser$().map__Lcats_parse_Parser__F1__Lcats_parse_Parser(this$3, fn$2)
+});
 $c_Lcats_parse_Parser$.prototype.defer__F0__Lcats_parse_Parser = (function(pa) {
   var fn = new $c_sjsr_AnonFunction0((() => $as_Lcats_parse_Parser($n(pa).apply__O())));
   return new $c_Lcats_parse_Parser$Impl$Defer(fn)
@@ -26450,7 +26603,7 @@ function $p_Lmarge_syntax_Program2$RxGraph$__drawEdges__sci_Map__Lmarge_syntax_P
                 var condText = ""
               };
               $n($m_s_package$().s_package$__f_List);
-              var elems = $m_sr_ScalaRunTime$().wrapRefArray__AO__sci_ArraySeq(new ($d_T.getArrayOf().constr)([qNameLabel, updText, condText]));
+              var elems = $m_sr_ScalaRunTime$().wrapRefArray__AO__sci_ArraySeq(new ($d_T.getArrayOf().constr)([condText, qNameLabel, updText]));
               var this$20 = $n($m_sci_Nil$().prependedAll__sc_IterableOnce__sci_List(elems));
               var f = ((_$6) => {
                 var _$6$1 = $as_T(_$6);
@@ -47465,6 +47618,11 @@ function $f_T__compareTo__T__I($thiz, anotherString) {
     i = ((1 + i) | 0)
   };
   return ((thisLength - strLength) | 0)
+}
+function $f_T__endsWith__T__Z($thiz, suffix) {
+  var this$1 = $n(suffix);
+  var $$x1 = $thiz.substring((($thiz.length - this$1.length) | 0));
+  return ($as_T($$x1) === suffix)
 }
 function $f_T__getChars__I__I__AC__I__V($thiz, srcBegin, srcEnd, dst, dstBegin) {
   if (((((srcEnd > $thiz.length) || (srcBegin < 0)) || (srcEnd < 0)) || (srcBegin > srcEnd))) {
