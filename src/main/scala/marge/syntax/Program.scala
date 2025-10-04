@@ -187,7 +187,6 @@ object Program:
       case (None,n) => s"No deadlocks found after ${maxit-n} states"
       case (Some(g),n) => s"Found deallock @ ${g}"
 
-  // I implemented findDeadlock for any SOS, but I could have done it just for "System".
   private def findDeadlock[Act,St](miss: Set[St], know: Set[St], maxit: Int)(using sos: SOS[Act,St]): (Option[St],Int) =
     if maxit <= 0 then (None,0)          // reached maximum iterations
     else miss.headOption match

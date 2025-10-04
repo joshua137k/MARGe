@@ -40,7 +40,7 @@ object CytoscapeConverter {
       
       val parentJson = parentId.map(p => s""", "parent": "$p"""").getOrElse("")
       
-      val isEnabled = rx.act.contains(edge) && isConditionSatisfied(edge, rx)
+      val isEnabled = rx.act.contains(edge) //&& isConditionSatisfied(edge, rx)
       val nodeTypeClass = if (allSimpleEdges.contains(edge)) "action-node" else "rule-node"
       val classes = s"event-node $nodeTypeClass " + (if (isEnabled) "enabled" else "disabled")
       s"""{ "data": { "id": "$id", "label": "${lbl.show}" ${parentJson} }, "classes": "$classes" }"""
@@ -50,11 +50,26 @@ object CytoscapeConverter {
     val simpleConnections = allSimpleEdges.filter(_.  _3.n.nonEmpty).flatMap { edge =>
       val (from, to, lbl) = edge
       val actionNodeId = s"event_${from}_${to}_${lbl}"
-      val isDisabled = !rx.act.contains(edge) || !isConditionSatisfied(edge, rx)
+      val isDisabled = !rx.act.contains(edge) //|| !isConditionSatisfied(edge, rx)
       val disabledClass = if (isDisabled) " disabled" else ""
+      val conditionLabel = rx.edgeConditions.getOrElse(edge, None)
+        .map { cond =>
+            val rightStr = cond.right match {
+                case Left(i) => i.toString
+                case Right(q) => q.show
+            }
+            s"[${cond.left.show} ${cond.op} $rightStr]"
+        }.getOrElse("")
+
+      val updateLabel = rx.edgeUpdates.getOrElse(edge, None)
+        .map { upd =>
+            val opSymbol = upd.op.replace("=", "")
+            s"${upd.variable.show}' := ${upd.variable.show} $opSymbol ${upd.value}"
+        }.getOrElse("")
+
       List(
-        formatCyEdge(s"s_to_a_${from}_${actionNodeId}", from.toString, actionNodeId, "", s"simple-conn$disabledClass"),
-        formatCyEdge(s"a_to_s_${actionNodeId}_${to}", actionNodeId, to.toString, "", s"simple-conn from-action-node$disabledClass")
+        formatCyEdge(s"s_to_a_${from}_${actionNodeId}", from.toString, actionNodeId, conditionLabel, s"simple-conn$disabledClass"),
+        formatCyEdge(s"a_to_s_${actionNodeId}_${to}", actionNodeId, to.toString, updateLabel, s"simple-conn from-action-node$disabledClass")
       )
     }
 
@@ -65,7 +80,7 @@ object CytoscapeConverter {
       val fromEventNodes = edgesThatCreateNodes.filter(_._3 == fromLabel)
       val toEventNodes = edgesThatCreateNodes.filter(_._3 == toLabel)
       
-      val isRuleDisabled = !rx.act.contains(ruleEdge) || !isConditionSatisfied(ruleEdge, rx)
+      val isRuleDisabled = !rx.act.contains(ruleEdge) //|| !isConditionSatisfied(ruleEdge, rx)
       val disabledClass = if (isRuleDisabled) " disabled" else ""
       val ruleClass = if (allOnEdges.contains(ruleEdge)) "enable-rule" else "disable-rule"
 

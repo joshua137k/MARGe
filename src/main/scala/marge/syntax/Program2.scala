@@ -246,7 +246,7 @@ object Program2:
         val qNameLabel = if c.n.nonEmpty then c.show else ""
         val updText    = if withConditions then rx.edgeUpdates.getOrElse(edge, None).map(_.toString).getOrElse("") else ""
         val condText   = if withConditions then rx.edgeConditions.getOrElse(edge, None).map(_.toMermaidString).getOrElse("") else ""
-        val combined   = List(qNameLabel, updText, condText).filter(_.nonEmpty).mkString(" ")
+        val combined   = List(condText,qNameLabel,updText).filter(_.nonEmpty).mkString(" ")
         
         if c.n.isEmpty then
           val edgeLabel = if combined.nonEmpty then s"|${combined}|" else ""

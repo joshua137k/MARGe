@@ -102,31 +102,146 @@ object CaosConfig2 extends Configurator[RxGraph]:
     }
   }
 
-
+  
   /** Examples of programs that the user can choose from. The first is the default one. */
   val examples = List(
-    "Simple" -> "init s0\ns0 --> s1: a\ns1 --> s0: b\na  --! a: offA"
-      -> "Basic example",
-    "Conditions" -> "int counter = 0\ninit start\nstart --> middle: step1 \\counter+=1 [counter < 2]\nmiddle --> endN: activateStep2 [counter == 1]"
-      -> "Basic example with counter updates and conditions",
-    "Machine" -> "int money = 0\ninit idle\nidle --> idle: insert_50c \\money+=50\nidle --> idle: insert_1e \\money+=100\nidle --> coke: select_coke [money >= 150]\nidle --> candy: select_candy [money >= 100]\ncoke --> idle: dispense_coke \\money-=150\ncandy --> idle: dispense_candy \\money-=100\nselect_coke --! select_coke: too_much_money [money > 200]"
-      -> "Teste",
-    "Counter" -> "init s0\ns0 --> s0: act\nact --! act: offAct disabled\nact ->> offAct: on1 disabled\nact ->> on1"
-      -> "turns off a transition after 3 times.",
-    "Penguim" -> "init Son_of_Tweetie\nSon_of_Tweetie --> Special_Penguin\nSpecial_Penguin --> Penguin: Penguim\nPenguin --> Bird: Bird\nBird --> Does_Fly: Fly\n\nBird --! Fly: noFly\nPenguim --! noFly"
-      -> "Figure 7.4 in Dov M Gabbay, Cognitive Technologies Reactive Kripke Semantics",
-    "Vending (max eur1)" -> "init Insert\nInsert --> Coffee: ct50\nInsert --> Chocolate: eur1\nCoffee --> Insert: Get_coffee\nChocolate --> Insert: Get_choc\n\neur1 --! ct50\neur1 --! eur1\nct50 --! ct50: lastct50 disabled\nct50 --! eur1\nct50 ->> lastct50"
-      -> "Example of a vending machine, presented in a recently accepted companion paper at FACS 2024. There is a total of eur1 to be spent, and some transitions are deactivated when there is not enough money.",
-    "Vending (max 3prod)" -> "init pay\npay --> select: insert_coin\nselect --> soda: ask_soda\nselect --> beer: ask_beer\nsoda --> pay: get_soda\nbeer --> pay: get_beer\n\nask_soda --! ask_soda: noSoda disabled\nask_beer --! ask_beer: noBeer\nask_soda ->> noSoda"
-      -> "Variation of an example of a vending machine, presented in a recently accepted companion paper at FACS 2024. There is a total of 1 beer and 2 sodas available.",
-    "Intrusive product" -> "aut s {\n  init i0\n  i0 --> i1: a\n  i1 --> i2: b\n  i2 --> i0: d disabled\n  a --! b\n}\naut w {\n  init i0\n  i0 --> i1: a\n  i1 --> i0: c\n  a --! a: noAs disabled\n  a ->> noAs\n}\n// intrusion\nw.c ->> s.b",
-    "Conflict" -> "init i0\ni0 --> i1: a\ni1 --> i2: b\ni2 --> i3: c disabled\n\na ->> b: on\non --! b: off"
-      -> "Possible conflict detected in the analysis.",
-    "Dependencies" -> "aut A {\n  init i0\n  i0 --> i1: look\n  i1 --> i0: restart\n}\n\naut B {\n  init i0\n  i0 --> i1: on\n  i1 --> i2: goLeft disabled\n  i1 --> i2: goRight disabled\n  goLeft --#-- goRight\n  i2 --> i0: off\n}\n\n// dependencies\nA.look ----> B.goLeft\nA.look ----> B.goRight"
-      -> "Experimental syntax to describe dependencies, currently only as syntactic sugar.",
-    "Dynamic SPL" -> "init setup\nsetup --> setup: Safe\nsetup --> setup: Unsafe\nsetup --> setup: Encrypt\nsetup --> setup: Dencrypt\nsetup --> ready\nready --> setup\nready --> received: Receive\nreceived --> routed_safe: ERoute  disabled\nreceived --> routed_unsafe: Route\nrouted_safe --> sent: ESend       disabled\nrouted_unsafe --> sent: Send\nrouted_unsafe --> sent_encrypt: ESend disabled\nsent_encrypt --> ready: Ready\nsent --> ready: Ready\n\nSafe ->> ERoute\nSafe --! Route\nUnsafe --! ERoute\nUnsafe ->> Route\nEncrypt --! Send\nEncrypt ->> ESend\nDencrypt ->> Send\nDencrypt --! ESend"
-      -> "Example of a Dynamic Software Product Line, borrowed from Fig 1 in Maxime Cordy et al. <em>Model Checking Adaptive Software with Featured Transition Systems</em>"
-  )
+  "Simple" ->
+    """init s0
+      |s0 --> s1: a
+      |s1 --> s0: b
+      |a  --! a: offA""".stripMargin
+    -> "Basic example",
+
+  "Conditions" ->
+    """int counter = 0
+      |init start
+      |start --> middle: step1  if counter < 2 counter' := counter + 1
+      |middle --> endN: activateStep2 if counter == 1""".stripMargin
+    -> "Basic example with counter updates and conditions",
+
+  "Counter" ->
+    """init s0
+      |s0 --> s0: act
+      |act --! act: offAct disabled
+      |act ->> offAct: on1 disabled
+      |act ->> on1""".stripMargin
+    -> "turns off a transition after 3 times.",
+
+  "Penguim" ->
+    """init Son_of_Tweetie
+      |Son_of_Tweetie --> Special_Penguin
+      |Special_Penguin --> Penguin: Penguim
+      |Penguin --> Bird: Bird
+      |Bird --> Does_Fly: Fly
+      |
+      |Bird --! Fly: noFly
+      |Penguim --! noFly""".stripMargin
+    -> "Figure 7.4 in Dov M Gabbay, Cognitive Technologies Reactive Kripke Semantics",
+
+  "Vending (max eur1)" ->
+    """init Insert
+      |Insert --> Coffee: ct50
+      |Insert --> Chocolate: eur1
+      |Coffee --> Insert: GetCoffee
+      |Chocolate --> Insert: GetChoc
+      |
+      |eur1 --! ct50
+      |eur1 --! eur1
+      |ct50 --! ct50: lastct50 disabled
+      |ct50 --! eur1
+      |ct50 ->> lastct50""".stripMargin
+    -> "Example of a vending machine, presented in a recently accepted companion paper at FACS 2024. There is a total of eur1 to be spent, and some transitions are deactivated when there is not enough money.",
+
+  "Vending (max 3prod)" ->
+    """init pay
+      |pay --> select: insertCoin
+      |select --> soda: askSoda
+      |select --> beer: askBeer
+      |soda --> pay: getSoda
+      |beer --> pay: getBeer
+      |
+      |askSoda --! askSoda: noSoda disabled
+      |askBeer --! askBeer: noBeer
+      |askSoda ->> noSoda""".stripMargin
+    -> "Variation of an example of a vending machine, presented in a recently accepted companion paper at FACS 2024. There is a total of 1 beer and 2 sodas available.",
+
+  "Intrusive product" ->
+    """aut s {
+      |  init i0
+      |  i0 --> i1: a
+      |  i1 --> i2: b
+      |  i2 --> i0: d disabled
+      |  a --! b
+      |}
+      |aut w {
+      |  init i0
+      |  i0 --> i1: a
+      |  i1 --> i0: c
+      |  a --! a: noAs disabled
+      |  a ->> noAs
+      |}
+      |// intrusion
+      |w.c ->> s.b""".stripMargin
+    -> "Intrusive product example",
+
+  "Conflict" ->
+    """init i0
+      |i0 --> i1: a
+      |i1 --> i2: b
+      |i2 --> i3: c disabled
+      |
+      |a ->> b: on
+      |on --! b: off""".stripMargin
+    -> "Possible conflict detected in the analysis.",
+
+  "Dependencies" ->
+    """aut A {
+      |  init i0
+      |  i0 --> i1: look
+      |  i1 --> i0: restart
+      |}
+      |
+      |aut B {
+      |  init i0
+      |  i0 --> i1: on
+      |  i1 --> i2: goLeft disabled
+      |  i1 --> i2: goRight disabled
+      |  goLeft --#-- goRight
+      |  i2 --> i0: off
+      |}
+      |
+      |// dependencies
+      |A.look ----> B.goLeft
+      |A.look ----> B.goRight""".stripMargin
+    -> "Experimental syntax to describe dependencies, currently only as syntactic sugar.",
+
+  "Dynamic SPL" ->
+    """init setup
+      |setup --> setup: Safe
+      |setup --> setup: Unsafe
+      |setup --> setup: Encrypt
+      |setup --> setup: Dencrypt
+      |setup --> ready
+      |ready --> setup
+      |ready --> received: Receive
+      |received --> routed_safe: ERoute  disabled
+      |received --> routed_unsafe: Route
+      |routed_safe --> sent: ESend       disabled
+      |routed_unsafe --> sent: Send
+      |routed_unsafe --> sent_encrypt: ESend disabled
+      |sent_encrypt --> ready: Ready
+      |sent --> ready: Ready
+      |
+      |Safe ->> ERoute
+      |Safe --! Route
+      |Unsafe --! ERoute
+      |Unsafe ->> Route
+      |Encrypt --! Send
+      |Encrypt ->> ESend
+      |Dencrypt ->> Send
+      |Dencrypt --! ESend""".stripMargin
+    -> "Example of a Dynamic Software Product Line, borrowed from Fig 1 in Maxime Cordy et al. <em>Model Checking Adaptive Software with Featured Transition Systems</em>"
+)
 
    val widgets = List(
     "PDL Analysis" -> Custom("pdlCombinedArea", (stx: RxGraph) => {

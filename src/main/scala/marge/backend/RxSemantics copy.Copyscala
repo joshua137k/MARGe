@@ -23,6 +23,14 @@ object RxSemantics extends SOS[QName,RxGraph] {
       case None => done
 
 
+  /**
+   * Calculates the effects of a transition (which edges to activate/deactivate)
+   * while also evaluating conditions and applying updates on the triggered hyper-edges.
+   *
+   * @param e The main edge that triggered the effects.
+   * @param rx The current reactive graph state.
+   * @return A tuple containing (edges to activate, edges to deactivate, the updated variable environment).
+   */
   def toOnOff(e: Edge, rx: RxGraph): (Edges, Edges, Map[QName, Int]) = {
     val triggeredHyperEdges = from(e, rx)
     global.console.log(s"[toOnOff] Hyper-arestas acionadas por ${showEdge(e)}: ${showEdges(triggeredHyperEdges)}")
@@ -70,76 +78,49 @@ object RxSemantics extends SOS[QName,RxGraph] {
     (toActivate, toDeactivate, currentEnv)
   }
 
-
-  private def getHyperEdgeEffects(e: Edge, rx: RxGraph): (Edges, Edges, List[CounterUpdate]) = {
-    val triggeredHyperEdges = from(e, rx)
-    var toActivate = Set.empty[Edge]
-    var toDeactivate = Set.empty[Edge]
-    var updatesToApply = List.empty[CounterUpdate]
-
-    for (hyperEdge <- triggeredHyperEdges) {
-      val conditionHolds = rx.edgeConditions.getOrElse(hyperEdge, None) match {
-        case Some(cond) => Condition.evaluate(cond, rx.val_env)
-        case None => true
-      }
-
-      if (conditionHolds) {
-        rx.edgeUpdates.get(hyperEdge).flatten.foreach { update =>
-          updatesToApply = update :: updatesToApply
-        }
-
-        val ruleSource = hyperEdge._1
-        val ruleTarget = (hyperEdge._2, hyperEdge._3)
-        if (rx.on(ruleSource).contains(ruleTarget)) {
-          toActivate ++= rx.lbls(hyperEdge._2)
-        }
-        if (rx.off(ruleSource).contains(ruleTarget)) {
-          toDeactivate ++= rx.lbls(hyperEdge._2)
-        }
-      }
-    }
-    (toActivate, toDeactivate, updatesToApply)
-  }
-
-
-  
-
     
+  /** Calulates the next possible init states */
   def next[Name >: QName](rx: RxGraph): Set[(Name, RxGraph)] =
     nextEdge(rx).map(e => e._1._3 -> e._2)
 
 
+  /** Similar to `next`, but include the full transition instead of only the action name */
   def nextEdge(rx: RxGraph): Set[(Edge, RxGraph)] =
-    for
-      st <- rx.inits
-      (st2, lbl) <- rx.edg(st)
-      edge = (st, st2, lbl)
-      if rx.act(edge)
-
-
-      conditionHolds = rx.edgeConditions.getOrElse(edge, None).forall(Condition.evaluate(_, rx.val_env))
-      if conditionHolds
+    for st <- rx.inits
+        (st2, lbl) <- rx.edg(st)
+        edge = (st, st2, lbl)
+        if rx.act(edge)
+        _ = global.console.log(s"[nextEdge] Considerando a aresta principal ativa: ${showEdge(edge)}")
+        // 1. Check condition on the main edge
+        conditionHolds = rx.edgeConditions.getOrElse(edge, None) match
+          case Some(cond) => Condition.evaluate(cond, rx.val_env)
+          case None =>
+            global.console.log(s"[nextEdge] Aresta ${showEdge(edge)} não possui condição.")
+            true
+        if conditionHolds
     yield
-      val mainUpdate = rx.edgeUpdates.get(edge).flatten.toList
-
-      val (toAct, toDeact, hyperUpdates) = getHyperEdgeEffects(edge, rx)
-
-      val allUpdates = mainUpdate ++ hyperUpdates
-
-
-      var finalValEnv = rx.val_env
-      for (update <- allUpdates.reverse) { 
-        val currentVal = finalValEnv.getOrElse(update.variable, 0)
-        update.op match {
-          case "+=" => finalValEnv = finalValEnv + (update.variable -> (currentVal + update.value))
-          case "-=" => finalValEnv = finalValEnv + (update.variable -> (currentVal - update.value))
-          case ":=" => finalValEnv = finalValEnv + (update.variable -> update.value)
-          case _    => 
-        }
+      // 2. Apply counter update for the main edge FIRST
+      var envAfterMainUpdate = rx.val_env
+      rx.edgeUpdates.getOrElse(edge, None) match {
+        case Some(CounterUpdate(variable, op, value)) =>
+          val currentVal = envAfterMainUpdate.getOrElse(variable, 0)
+          op match {
+            case "+=" => envAfterMainUpdate = envAfterMainUpdate + (variable -> (currentVal + value))
+            case "-=" => envAfterMainUpdate = envAfterMainUpdate + (variable -> (currentVal - value))
+            case _ =>
+          }
+          global.console.log(s"[nextEdge] Aplicada atualização da aresta principal: ${CounterUpdate(variable, op, value)}. Novo ambiente (temporário): ${envAfterMainUpdate.map{case (k,v) => s"$k=$v"}.mkString(", ")}")
+        case None =>
       }
 
-      val newAct = (rx.act ++ toAct) -- toDeact 
+      // 3. Calculate effects using the updated environment
+      val tempRxForEffects = rx.copy(val_env = envAfterMainUpdate)
+       global.console.log(s"[nextEdge] Calculando efeitos para a aresta ${showEdge(edge)}...")
+      val (toAct, toDeact, finalValEnv) = toOnOff(edge, tempRxForEffects)
+
+      // 4. Create the next state with the final results
+      val newAct = (rx.act ++ toAct) -- toDeact // biased to deactivation
       val newInits = (rx.inits - st) + st2
 
-      (edge, rx.copy(inits = newInits, act = newAct, val_env = finalValEnv))
+      (st, st2, lbl) -> rx.copy(inits = newInits, act = newAct, val_env = finalValEnv)
 }

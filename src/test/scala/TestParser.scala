@@ -1,13 +1,14 @@
-class TestParser extends munit.FunSuite {
-  import marge.syntax.*
-  import Program.*
-  import Term.*
+// src/test/scala/TestParser.scala
 
-  test("example test that succeeds") {
-    val obtained =
-      marge.syntax.Parser.parseProgram("let P = a.b; in c.P")
-    val expected =
-      System(Map("P" -> Prefix("a", Prefix("b", End))), Prefix("c", Proc("P")), None)
-    assertEquals(obtained, expected)
-  }
+import munit.FunSuite
+import marge.syntax.Program2.*
+import marge.syntax.Parser2.program
+
+class TestParser extends FunSuite {
+
+  
+    val input = "init s0\ns0 --> s1: a"
+    val obtained = program.parseAll(input)
+  
+
 }

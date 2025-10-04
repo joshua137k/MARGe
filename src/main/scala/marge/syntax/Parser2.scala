@@ -10,7 +10,20 @@ import scala.sys.error
 object Parser2 :
 
   def parseProgram(str:String):RxGraph =
-    pp(program,str) match
+    val processedStr = str.linesIterator
+      .map { line =>
+        val trimmedLine = line.trim
+        if (trimmedLine.isEmpty ||  
+            trimmedLine.contains("{") ||
+            trimmedLine.endsWith(";")
+        ) {
+          line
+        } else {
+          line + ";"
+        }
+      }
+      .mkString("\n")
+    pp(program,processedStr) match
       case Left(e) => error(e)
       case Right(c) => c
 
@@ -57,10 +70,10 @@ object Parser2 :
   def program: P[RxGraph] =
     sps.with1 *> statements <* sps
 
-
+  private val sep: P[Unit] = P.char(';').surroundedBy(sps)
 
   def statements: P[RxGraph] = P.recursive(rx =>
-    statement(rx).repSep(sps)
+    (statement(rx).repSep(sep) <* sep.?)
       .map(res => res.toList.fold(RxGraph())(_ ++ _))
   )
   
@@ -94,48 +107,66 @@ object Parser2 :
     integer.map(Left(_)) | qname.map(Right(_))
 
   def condition: P[Condition] =
-    (P.char('[') *> sps *> qname ~
+    (P.string("if") *> sps *> qname ~
       (sps *> comparisonOp) ~
-      (sps *> intOrQName) <* sps <* P.char(']')
+      (sps *> intOrQName)
     ).map { case ((left, op), right) => Condition(left, op, right) }
   
-  def counterOp: P[String] = P.string("+=").as("+=") | P.string("-=").as("-=")
+  def counterOp: P[String] = P.string("+").as("+=") | P.string("-").as("-=")
 
-  def counterUpdate: P[CounterUpdate] =
-    (P.char('\\') *> sps *> qname ~ (sps *> counterOp) ~ (sps *> integer))
-      .map { case ((variable, op), value) => CounterUpdate(variable, op, value) }
+ 
+  def counterUpdate: P[CounterUpdate] = {
+    val lhsParser: P[QName] = 
+      qname <* P.char('\'').surroundedBy(sps) <* P.string(":=").surroundedBy(sps)
 
-  def edge: P[RxGraph] =
-    (qname ~ // (1) from state
-      arrow.surroundedBy(sps) ~ // (2) arrow type
-      qname // (3) to state (não consume o espaço aqui, os opcionais farão isso)
+
+    lhsParser.flatMap { lhsVar =>
+      val relativeRhs: P[CounterUpdate] = {
+        val op: P[String] = P.char('+').as("+=") | P.char('-').as("-=")
+        (
+          qname.filter(_ == lhsVar) ~ 
+          (sps *> op) ~
+          (sps *> integer)
+        ).map { case ((_, parsedOp), value) =>
+          CounterUpdate(lhsVar, parsedOp, value)
+        }
+      }
+
+      val absoluteRhs: P[CounterUpdate] =
+        integer.map { value =>
+          CounterUpdate(lhsVar, ":=", value) 
+        }
+
+      relativeRhs.backtrack | absoluteRhs
+    }
+  }
+
+  
+
+   def edge: P[RxGraph] =
+    (qname ~
+      arrow.surroundedBy(sps) ~
+      qname
     ).flatMap { case ((n1, arFunc), n2) =>
-      // Define os parsers opcionais para os sufixos.
-      // Cada um é um Optional[Parser], e o encadeamento com `sps *>` garantirá
-      // que o espaço é consumido *antes* de cada elemento opcional, se presente.
-      val labelP = (P.char(':') *> sps *> qname).?
-      val updateP = counterUpdate.? 
-      val conditionP = condition.?  
-      val disabledP = P.string("disabled").? 
+      val labelP: P0[Option[QName]] =
+        (P.char(':') *> sps *> qname).?
 
-      // Encadeia os opcionais, com `sps *>` antes de cada um na sequência,
-      // para consumir os espaços *entre* eles.
-      (labelP ~
-        (sps *> updateP).? ~       // Tenta 'sps' e 'updateP', resultando em Option[Option[CounterUpdate]]
-        (sps *> conditionP).? ~    // Tenta 'sps' e 'conditionP', resultando em Option[Option[Condition]]
-        (sps *> disabledP).?       // Tenta 'sps' e 'disabledP', resultando em Option[Option[String]]
-      ).map {
-        // Desestruturação com tratamento para Options aninhados
-        case (((lblOpt, updOptOpt), condOptOpt), disabledOptOpt) =>
+      val condP: P0[Option[Condition]] =
+        (sps.with1 *> condition).backtrack.?
+
+      val updP: P0[Option[CounterUpdate]] =
+        (sps.with1 *> counterUpdate).backtrack.?
+
+      val disabledP: P0[Option[Unit]] =
+        (sps.with1 *> P.string("disabled").void).backtrack.?
+
+      (labelP ~ condP ~ updP ~ disabledP).map {
+        case (((lblOpt, condOpt), updOpt), disOpt) =>
           val label = lblOpt.getOrElse(QName(List()))
-          val upd = updOptOpt.flatten    // Extrai o Option[CounterUpdate]
-          val cond = condOptOpt.flatten  // Extrai o Option[Condition]
-          val disabled = disabledOptOpt.flatten // Extrai o Option[String]
-
-          val baseGraph = arFunc(n1, n2, label, cond, upd)
-          disabled match {
-            case Some(_) => baseGraph.deactivate(n1, n2, label)
-            case None => baseGraph
+          val base  = arFunc(n1, n2, label, condOpt, updOpt)
+          disOpt match {
+            case Some(_) => base.deactivate(n1, n2, label)
+            case None    => base
           }
       }
     }
