@@ -61,11 +61,10 @@ object CytoscapeConverter {
             s"[${cond.left.show} ${cond.op} $rightStr]"
         }.getOrElse("")
 
-      val updateLabel = rx.edgeUpdates.getOrElse(edge, None)
+      val updateLabel = rx.edgeUpdates.getOrElse(edge, Nil)
         .map { upd =>
-            val opSymbol = upd.op.replace("=", "")
-            s"${upd.variable.show}' := ${upd.variable.show} $opSymbol ${upd.value}"
-        }.getOrElse("")
+            s"${upd.variable.show}' := ${upd.variable.show} ${upd.op.replace("=", "")} ${upd.value}"
+        }.mkString("\\n") // Use newline for multiple updates
 
       List(
         formatCyEdge(s"s_to_a_${from}_${actionNodeId}", from.toString, actionNodeId, conditionLabel, s"simple-conn$disabledClass"),

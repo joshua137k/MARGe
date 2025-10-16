@@ -118,38 +118,38 @@ object Program2:
                      act: Edges,
                      val_env: Map[QName, Int], //  ambiente de valores para variáveis
                      edgeConditions: Map[Edge, Option[Condition]], //  condições associadas a arestas
-                     edgeUpdates: Map[Edge, Option[CounterUpdate]] 
+                     edgeUpdates: Map[Edge, List[CounterUpdate]] 
                     ):
 
     def showSimple: String =
       s"[at] ${inits.mkString(",")}${if val_env.nonEmpty then s" [vars] ${val_env.map(kv => s"${kv._1}=${kv._2}").mkString(", ")}" else ""} [active] ${showEdges(act)}" +
-        s"${if edgeUpdates.nonEmpty then s" [upd] ${edgeUpdates.filter(_._2.isDefined).map(kv => s"${showEdge(kv._1)} -> ${kv._2.get}").mkString(", ")}" else ""}" // UPDATED
+        s"${if edgeUpdates.values.exists(_.nonEmpty) then s" [upd] ${edgeUpdates.filter(_._2.nonEmpty).map(kv => s"${showEdge(kv._1)} -> ${kv._2.map(_.toString).mkString("; ")}").mkString(", ")}" else ""}"
 
     override def toString: String =
       s"[init]  ${inits.mkString(",")}\n[vars]  ${val_env.map(kv => s"${kv._1}=${kv._2}").mkString(", ")}\n[act]   ${showEdges(act)}\n[edges] ${
         showEdges(edg)}\n[on]    ${showEdges(on)}\n[off]   ${showEdges(off)}\n[conds] ${
         edgeConditions.filter(_._2.isDefined).map(kv => s"${showEdge(kv._1)} -> ${kv._2.get}").mkString(", ")}\n[upd]   ${
-        edgeUpdates.filter(_._2.isDefined).map(kv => s"${showEdge(kv._1)} -> ${kv._2.get}").mkString(", ")}" // UPDATED
+        edgeUpdates.filter(_._2.nonEmpty).map(kv => s"${showEdge(kv._1)} -> ${kv._2.map(_.toString).mkString("; ")}").mkString(", ")}" // UPDATED
 
     def states =
       for (src,dests)<-edg.toSet; (d,_)<-dests; st <- Set(src,d) yield st
 
-    // Métodos para aceitar Option[Condition] e Option[CounterUpdate]
-    def addEdge(s1:QName,s2:QName,l:QName, cond: Option[Condition] = None, upd: Option[CounterUpdate] = None) = 
+    // Métodos para aceitarOption[Condition] e Option[CounterUpdate]
+    def addEdge(s1:QName,s2:QName,l:QName, cond: Option[Condition] = None, upd: List[CounterUpdate] = Nil) = 
       this.copy(edg = add(s1->(s2,l),edg),
         lbls = add(l->(s1,s2,l),lbls),
         act = act+((s1,s2,l)),
         edgeConditions = edgeConditions + (((s1,s2,l) -> cond)),
         edgeUpdates = edgeUpdates + (((s1,s2,l) -> upd))) 
 
-    def addOn(s1:QName,s2:QName,l:QName, cond: Option[Condition] = None, upd: Option[CounterUpdate] = None) = 
+    def addOn(s1:QName,s2:QName,l:QName, cond: Option[Condition] = None, upd: List[CounterUpdate] = Nil) = 
       this.copy(on  = add(s1->(s2,l),on),
         lbls = add(l->(s1,s2,l),lbls),
         act = act+((s1,s2,l)),
         edgeConditions = edgeConditions + (((s1,s2,l) -> cond)),
         edgeUpdates = edgeUpdates + (((s1,s2,l) -> upd))) 
 
-    def addOff(s1:QName,s2:QName,l:QName, cond: Option[Condition] = None, upd: Option[CounterUpdate] = None) = 
+    def addOff(s1:QName,s2:QName,l:QName, cond: Option[Condition] = None, upd: List[CounterUpdate] = Nil) = 
       this.copy(off = add(s1->(s2,l),off),
         lbls = add(l->(s1,s2,l),lbls),
         act = act+((s1,s2,l)),
@@ -177,7 +177,7 @@ object Program2:
     def apply(): RxGraph = RxGraph(
       Map().withDefaultValue(Set()),Map().withDefaultValue(Set()),
       Map().withDefaultValue(Set()),Map().withDefaultValue(Set()),Set(),Set(),
-      Map(), Map().withDefaultValue(None), Map().withDefaultValue(None)) 
+      Map(), Map().withDefaultValue(None), Map().withDefaultValue(Nil))
 
 
     /** Generates a mermaid graph with all edges */
@@ -244,7 +244,7 @@ object Program2:
         val line = if (isGloballyActive && isConditionSatisfied) then "---" else "-.-"
 
         val qNameLabel = if c.n.nonEmpty then c.show else ""
-        val updText    = if withConditions then rx.edgeUpdates.getOrElse(edge, None).map(_.toString).getOrElse("") else ""
+        val updText    = if withConditions then rx.edgeUpdates.getOrElse(edge, Nil).map(_.toString).mkString(" ") else ""
         val condText   = if withConditions then rx.edgeConditions.getOrElse(edge, None).map(_.toMermaidString).getOrElse("") else ""
         val combined   = List(condText,qNameLabel,updText).filter(_.nonEmpty).mkString(" ")
         

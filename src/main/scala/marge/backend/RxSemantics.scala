@@ -84,9 +84,7 @@ object RxSemantics extends SOS[QName,RxGraph] {
       }
 
       if (conditionHolds) {
-        rx.edgeUpdates.get(hyperEdge).flatten.foreach { update =>
-          updatesToApply = update :: updatesToApply
-        }
+        updatesToApply = rx.edgeUpdates.getOrElse(hyperEdge, Nil) ::: updatesToApply
 
         val ruleSource = hyperEdge._1
         val ruleTarget = (hyperEdge._2, hyperEdge._3)
@@ -120,7 +118,7 @@ object RxSemantics extends SOS[QName,RxGraph] {
       conditionHolds = rx.edgeConditions.getOrElse(edge, None).forall(Condition.evaluate(_, rx.val_env))
       if conditionHolds
     yield
-      val mainUpdate = rx.edgeUpdates.get(edge).flatten.toList
+      val mainUpdate = rx.edgeUpdates.getOrElse(edge, Nil)
 
       val (toAct, toDeact, hyperUpdates) = getHyperEdgeEffects(edge, rx)
 

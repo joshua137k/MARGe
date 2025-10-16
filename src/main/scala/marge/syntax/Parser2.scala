@@ -13,9 +13,9 @@ object Parser2 :
     val processedStr = str.linesIterator
       .map { line =>
         val trimmedLine = line.trim
-        if (trimmedLine.isEmpty ||  
+        if (trimmedLine.isEmpty ||
             trimmedLine.contains("{") ||
-            trimmedLine.endsWith(";")
+            trimmedLine.endsWith(";") 
         ) {
           line
         } else {
@@ -76,7 +76,7 @@ object Parser2 :
     (statement(rx).repSep(sep) <* sep.?)
       .map(res => res.toList.fold(RxGraph())(_ ++ _))
   )
-  
+
   def statement(rx:P[RxGraph]): P[RxGraph] =
     init | aut(rx) | intDeclaration | edge
 
@@ -106,25 +106,27 @@ object Parser2 :
   def intOrQName: P[Either[Int, QName]] =
     integer.map(Left(_)) | qname.map(Right(_))
 
-  def condition: P[Condition] =
-    (P.string("if") *> sps *> qname ~
+  def conditionExpr: P[Condition] =
+    (qname ~
       (sps *> comparisonOp) ~
       (sps *> intOrQName)
     ).map { case ((left, op), right) => Condition(left, op, right) }
-  
+
+  def condition: P[Condition] =
+    P.string("if") *> sps *> conditionExpr
+
   def counterOp: P[String] = P.string("+").as("+=") | P.string("-").as("-=")
 
- 
-  def counterUpdate: P[CounterUpdate] = {
-    val lhsParser: P[QName] = 
-      qname <* P.char('\'').surroundedBy(sps) <* P.string(":=").surroundedBy(sps)
 
+  def counterUpdate: P[CounterUpdate] = {
+    val lhsParser: P[QName] =
+      qname <* P.char('\'').surroundedBy(sps) <* P.string(":=").surroundedBy(sps)
 
     lhsParser.flatMap { lhsVar =>
       val relativeRhs: P[CounterUpdate] = {
         val op: P[String] = P.char('+').as("+=") | P.char('-').as("-=")
         (
-          qname.filter(_ == lhsVar) ~ 
+          qname.filter(_ == lhsVar) ~
           (sps *> op) ~
           (sps *> integer)
         ).map { case ((_, parsedOp), value) =>
@@ -134,57 +136,83 @@ object Parser2 :
 
       val absoluteRhs: P[CounterUpdate] =
         integer.map { value =>
-          CounterUpdate(lhsVar, ":=", value) 
+          CounterUpdate(lhsVar, ":=", value)
         }
 
       relativeRhs.backtrack | absoluteRhs
     }
   }
 
-  
+  def guardBlock: P[(Option[Condition], List[CounterUpdate])] =
+    (P.string("if") *> sps *> conditionExpr ~
+      (sps *> P.string("then") *> sps *> P.char('{') *> sps *>
+        (counterUpdate.repSep(sep) <* sep.?) <* sps <* P.char('}'))
+    ).map { case (cond, updates) => (Some(cond), updates.toList) }
 
-   def edge: P[RxGraph] =
-    (qname ~
-      arrow.surroundedBy(sps) ~
-      qname
-    ).flatMap { case ((n1, arFunc), n2) =>
-      val labelP: P0[Option[QName]] =
-        (P.char(':') *> sps *> qname).?
-
-      val condP: P0[Option[Condition]] =
-        (sps.with1 *> condition).backtrack.?
-
-      val updP: P0[Option[CounterUpdate]] =
-        (sps.with1 *> counterUpdate).backtrack.?
-
-      val disabledP: P0[Option[Unit]] =
-        (sps.with1 *> P.string("disabled").void).backtrack.?
-
-      (labelP ~ condP ~ updP ~ disabledP).map {
-        case (((lblOpt, condOpt), updOpt), disOpt) =>
-          val label = lblOpt.getOrElse(QName(List()))
-          val base  = arFunc(n1, n2, label, condOpt, updOpt)
-          disOpt match {
-            case Some(_) => base.deactivate(n1, n2, label)
-            case None    => base
-          }
-      }
+  def inlineGuard: P[(Option[Condition], List[CounterUpdate])] = {
+    val condThenMaybeUpdate = (condition ~ (sps *> counterUpdate).?).map {
+      case (cond, updOpt) => (Some(cond), updOpt.toList)
     }
+    val justUpdate = counterUpdate.map { upd =>
+      (None, List(upd))
+    }
+    condThenMaybeUpdate.backtrack | justUpdate
+  }
+
+  private sealed trait EdgeAttribute
+  private case class Label(name: QName) extends EdgeAttribute
+  private case class Guard(cond: Option[Condition], updates: List[CounterUpdate]) extends EdgeAttribute
+  private case object Disabled extends EdgeAttribute
 
 
+  def edge: P[RxGraph] = {
+    val keywords = Set("init", "aut", "int")
+
+    val labelAttr: P[EdgeAttribute] = (P.char(':') *> sps *> qname).map(Label.apply)
+    val guardAttr: P[EdgeAttribute] = (guardBlock.backtrack | inlineGuard).map { case (c, u) => Guard(c, u) }
+    val disabledAttr: P[EdgeAttribute] = P.string("disabled").as(Disabled)
+
+    val attribute: P[EdgeAttribute] = sps.with1 *> (labelAttr | disabledAttr| guardAttr  )
+    val attributesParser: P0[List[EdgeAttribute]] = attribute.rep0
+
+    // <<< CORREÇÃO FINAL ESTÁ AQUI >>>
+    // A assinatura da função (`ArrowFunc`) agora está correta.
+    type ArrowFunc = (QName, QName, QName, Option[Condition], List[CounterUpdate]) => RxGraph
+
+    val coreEdgeParser: P[(QName, ArrowFunc, QName)] =
+      qname.flatMap { n1 =>
+        if (keywords.contains(n1.toString)) {
+          P.fail
+        } else {
+          (arrow.surroundedBy(sps) ~ qname).map { case (arFunc, n2) =>
+            (n1, arFunc, n2)
+          }
+        }
+      }
+
+    (coreEdgeParser ~ attributesParser).map { case ((n1, arFunc, n2), attrs) =>
+      val (lbl, guardCond, guardUpd, isDisabled) = attrs.foldLeft((QName(Nil), None: Option[Condition], Nil: List[CounterUpdate], false)) {
+        case ((_, c, u, d), Label(name)) => (name, c, u, d)
+        case ((l, _, _, d), Guard(cond, updates)) => (l, cond, updates, d)
+        case ((l, c, u, _), Disabled) => (l, c, u, true)
+      }
+
+      // A chamada a `arFunc` agora tem a assinatura correta (5 argumentos).
+      val base = arFunc(n1, n2, lbl, guardCond, guardUpd)
+      if (isDisabled) base.deactivate(n1, n2, lbl) else base
+    }
+  }
 
 
-  def arrow: P[(QName,QName,QName, Option[Condition], Option[CounterUpdate])=>RxGraph] = 
+  def arrow: P[(QName,QName,QName, Option[Condition], List[CounterUpdate])=>RxGraph] =
     P.string("-->").as(RxGraph().addEdge) |
     P.string("->>").as(RxGraph().addOn) |
     P.string("--!").as(RxGraph().addOff) |
     P.string("--x").as(RxGraph().addOff) |
-    P.string("--#--").as((a:QName,b:QName,c:QName, cond: Option[Condition], upd: Option[CounterUpdate]) => RxGraph()
-      .addOff(a,b,c, cond, upd).addOff(b,a,c, cond, upd)) | 
-    P.string("---->").as((a:QName,b:QName,c:QName, cond: Option[Condition], upd: Option[CounterUpdate]) => RxGraph()
-      .addOn(a,b,c, cond, upd).addOff(b,b,c, cond, upd)) 
-
-
+    P.string("--#--").as((a:QName,b:QName,c:QName, cond: Option[Condition], upd: List[CounterUpdate]) => RxGraph()
+      .addOff(a,b,c, cond, upd).addOff(b,a,c, cond, upd)) |
+    P.string("---->").as((a:QName,b:QName,c:QName, cond: Option[Condition], upd: List[CounterUpdate]) => RxGraph()
+      .addOn(a,b,c, cond, upd).addOff(b,b,c, cond, upd))
 
   object Examples:
     val ex1 =
