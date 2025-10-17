@@ -3,7 +3,7 @@ package marge.syntax
 import cats.parse.Parser.*
 import cats.parse.{LocationMap, Parser as P, Parser0 as P0}
 import cats.parse.Rfc5234.{alpha, digit, sp}
-import marge.syntax.Program2.{Condition, CounterUpdate, QName, RxGraph}
+import marge.syntax.Program2.{Condition, CounterUpdate, QName, RxGraph, UpdateExpr}
 
 import scala.sys.error
 
@@ -15,7 +15,7 @@ object Parser2 :
         val trimmedLine = line.trim
         if (trimmedLine.isEmpty ||
             trimmedLine.contains("{") ||
-            trimmedLine.endsWith(";") 
+            trimmedLine.endsWith(";")
         ) {
           line
         } else {
@@ -115,33 +115,23 @@ object Parser2 :
   def condition: P[Condition] =
     P.string("if") *> sps *> conditionExpr
 
-  def counterOp: P[String] = P.string("+").as("+=") | P.string("-").as("-=")
+  def updateExpr: P[UpdateExpr] = {
+    val litParser: P[UpdateExpr] = integer.map(UpdateExpr.Lit.apply)
+    val varParser: P[UpdateExpr] = qname.map(UpdateExpr.Var.apply)
 
+    val addSubParser: P[UpdateExpr] = (
+      qname ~ (sps *> (P.char('+').as("+") | P.char('-').as("-"))) ~ (sps *> intOrQName)
+      ).map {
+      case ((v, "+"), e) => UpdateExpr.Add(v, e)
+      case ((v, "-"), e) => UpdateExpr.Sub(v, e)
+    }
+    addSubParser.backtrack | litParser.backtrack | varParser
+  }
 
   def counterUpdate: P[CounterUpdate] = {
-    val lhsParser: P[QName] =
-      qname <* P.char('\'').surroundedBy(sps) <* P.string(":=").surroundedBy(sps)
+    (qname <* P.char('\'').surroundedBy(sps) <* P.string(":=").surroundedBy(sps)) ~ updateExpr
+  }.map { case (lhs, expr) => CounterUpdate(lhs, expr) }
 
-    lhsParser.flatMap { lhsVar =>
-      val relativeRhs: P[CounterUpdate] = {
-        val op: P[String] = P.char('+').as("+=") | P.char('-').as("-=")
-        (
-          qname.filter(_ == lhsVar) ~
-          (sps *> op) ~
-          (sps *> integer)
-        ).map { case ((_, parsedOp), value) =>
-          CounterUpdate(lhsVar, parsedOp, value)
-        }
-      }
-
-      val absoluteRhs: P[CounterUpdate] =
-        integer.map { value =>
-          CounterUpdate(lhsVar, ":=", value)
-        }
-
-      relativeRhs.backtrack | absoluteRhs
-    }
-  }
 
   def guardBlock: P[(Option[Condition], List[CounterUpdate])] =
     (P.string("if") *> sps *> conditionExpr ~
@@ -175,8 +165,6 @@ object Parser2 :
     val attribute: P[EdgeAttribute] = sps.with1 *> (labelAttr | disabledAttr| guardAttr  )
     val attributesParser: P0[List[EdgeAttribute]] = attribute.rep0
 
-    // <<< CORREÇÃO FINAL ESTÁ AQUI >>>
-    // A assinatura da função (`ArrowFunc`) agora está correta.
     type ArrowFunc = (QName, QName, QName, Option[Condition], List[CounterUpdate]) => RxGraph
 
     val coreEdgeParser: P[(QName, ArrowFunc, QName)] =
@@ -196,8 +184,7 @@ object Parser2 :
         case ((l, _, _, d), Guard(cond, updates)) => (l, cond, updates, d)
         case ((l, c, u, _), Disabled) => (l, c, u, true)
       }
-
-      // A chamada a `arFunc` agora tem a assinatura correta (5 argumentos).
+      
       val base = arFunc(n1, n2, lbl, guardCond, guardUpd)
       if (isDisabled) base.deactivate(n1, n2, lbl) else base
     }

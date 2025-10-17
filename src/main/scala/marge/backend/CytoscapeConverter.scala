@@ -1,6 +1,6 @@
 package marge.backend
 
-import marge.syntax.Program2.{Condition, Edge, QName, RxGraph}
+import marge.syntax.Program2.{Condition, Edge, QName, RxGraph, UpdateExpr}
 
 object CytoscapeConverter {
 
@@ -12,7 +12,7 @@ object CytoscapeConverter {
     val edgesThatCreateNodes = allSimpleEdges.filter(_.  _3.n.nonEmpty) ++ allOnEdges ++ allOffEdges
 
 
-    
+
     val allQNames = rx.states ++ edgesThatCreateNodes.flatMap(e => Set(e._1, e._2, e._3))
     val parentQNames = allQNames.flatMap(q => (1 until q.n.length).map(i => QName(q.n.take(i)))).toSet
 
@@ -37,9 +37,9 @@ object CytoscapeConverter {
       val parentId = List(lbl, from, to)
         .find(_.n.size > 1)
         .map(_.scope.toString)
-      
+
       val parentJson = parentId.map(p => s""", "parent": "$p"""").getOrElse("")
-      
+
       val isEnabled = rx.act.contains(edge) //&& isConditionSatisfied(edge, rx)
       val nodeTypeClass = if (allSimpleEdges.contains(edge)) "action-node" else "rule-node"
       val classes = s"event-node $nodeTypeClass " + (if (isEnabled) "enabled" else "disabled")
@@ -63,7 +63,7 @@ object CytoscapeConverter {
 
       val updateLabel = rx.edgeUpdates.getOrElse(edge, Nil)
         .map { upd =>
-            s"${upd.variable.show}' := ${upd.variable.show} ${upd.op.replace("=", "")} ${upd.value}"
+          s"${upd.variable.show}' := ${UpdateExpr.show(upd.expr)}"
         }.mkString("\\n") // Use newline for multiple updates
 
       List(
@@ -78,7 +78,7 @@ object CytoscapeConverter {
 
       val fromEventNodes = edgesThatCreateNodes.filter(_._3 == fromLabel)
       val toEventNodes = edgesThatCreateNodes.filter(_._3 == toLabel)
-      
+
       val isRuleDisabled = !rx.act.contains(ruleEdge) //|| !isConditionSatisfied(ruleEdge, rx)
       val disabledClass = if (isRuleDisabled) " disabled" else ""
       val ruleClass = if (allOnEdges.contains(ruleEdge)) "enable-rule" else "disable-rule"
@@ -98,7 +98,7 @@ object CytoscapeConverter {
 
     val allNodes = (parentNodes ++ stateNodes ++ eventNodes).filter(_.nonEmpty).mkString(",\n")
     val allConnections = (simpleConnections ++ hyperConnections).filter(_.nonEmpty).mkString(",\n")
-    
+
     s"""[ ${Seq(allNodes, allConnections).filter(_.nonEmpty).mkString(",\n")} ]"""
   }
 

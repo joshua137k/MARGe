@@ -76,8 +76,25 @@ object Program2:
     }
   }
 
-  case class CounterUpdate(variable: QName, op: String, value: Int) {
-    override def toString = s"\\${variable} ${op} ${value}"
+  sealed trait UpdateExpr
+  object UpdateExpr {
+    case class Lit(i: Int) extends UpdateExpr
+    case class Var(q: QName) extends UpdateExpr
+    case class Add(v: QName, e: Either[Int, QName]) extends UpdateExpr
+    case class Sub(v: QName, e: Either[Int, QName]) extends UpdateExpr
+
+    def show(expr: UpdateExpr): String = expr match {
+      case Lit(i) => i.toString
+      case Var(q) => q.show
+      case Add(v, Left(i)) => s"${v.show} + $i"
+      case Add(v, Right(q)) => s"${v.show} + ${q.show}"
+      case Sub(v, Left(i)) => s"${v.show} - $i"
+      case Sub(v, Right(q)) => s"${v.show} - ${q.show}"
+    }
+  }
+
+  case class CounterUpdate(variable: QName, expr: UpdateExpr) {
+    override def toString: String = s"${variable.show}' := ${UpdateExpr.show(expr)}"
   }
 
   object Condition {

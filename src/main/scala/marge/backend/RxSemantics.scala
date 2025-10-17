@@ -1,6 +1,6 @@
 package marge.backend
 
-import marge.syntax.Program2.{Condition,CounterUpdate, Edge, Edges, QName, RxGraph}
+import marge.syntax.Program2.{Condition,CounterUpdate, Edge, Edges, QName, RxGraph, UpdateExpr}
 import caos.sos.SOS
 import scala.scalajs.js.Dynamic.global
 import marge.syntax.Program2.showEdge
@@ -35,7 +35,7 @@ object RxSemantics extends SOS[QName,RxGraph] {
       // Check the condition of the hyper-edge itself
       val conditionHolds = rx.edgeConditions.getOrElse(hyperEdge, None) match {
         case Some(cond) => Condition.evaluate(cond, currentEnv)
-        case None => 
+        case None =>
           global.console.log(s"[toOnOff] Hyper-aresta ${showEdge(hyperEdge)} não possui condição.")
           true // No condition means it always holds
       }
@@ -43,16 +43,27 @@ object RxSemantics extends SOS[QName,RxGraph] {
       if (conditionHolds) {
         global.console.log(s"[toOnOff] Condição da hyper-aresta ${showEdge(hyperEdge)} satisfeita. Aplicando efeitos.")
         // If condition holds, apply the counter update of the hyper-edge
-        rx.edgeUpdates.getOrElse(hyperEdge, None) match {
-          case Some(CounterUpdate(variable, op, value)) =>
-            val currentVal = currentEnv.getOrElse(variable, 0)
-            op match {
-              case "+=" => currentEnv = currentEnv + (variable -> (currentVal + value))
-              case "-=" => currentEnv = currentEnv + (variable -> (currentVal - value))
-              case _    => // Should not happen
+        rx.edgeUpdates.getOrElse(hyperEdge, Nil).foreach { update =>
+            val rhsVal = update.expr match {
+              case UpdateExpr.Lit(i) => i
+              case UpdateExpr.Var(q) => currentEnv.getOrElse(q, 0)
+              case UpdateExpr.Add(v, e) =>
+                val vVal = currentEnv.getOrElse(v, 0)
+                val eVal = e match {
+                  case Left(i) => i
+                  case Right(q) => currentEnv.getOrElse(q, 0)
+                }
+                vVal + eVal
+              case UpdateExpr.Sub(v, e) =>
+                val vVal = currentEnv.getOrElse(v, 0)
+                val eVal = e match {
+                  case Left(i) => i
+                  case Right(q) => currentEnv.getOrElse(q, 0)
+                }
+                vVal - eVal
             }
-            global.console.log(s"[toOnOff] Aplicada atualização da hyper-aresta: ${CounterUpdate(variable, op, value)}. Ambiente agora é: ${currentEnv.map{case (k,v) => s"$k=$v"}.mkString(", ")}")
-          case None => // No update
+            currentEnv = currentEnv + (update.variable -> rhsVal)
+            global.console.log(s"[toOnOff] Aplicada atualização da hyper-aresta: ${update}. Ambiente agora é: ${currentEnv.map{case (k,v) => s"${k.show}=${v}"}.mkString(", ")}")
         }
 
         // Determine if it's an 'on' or 'off' rule and add target edges accordingly
@@ -100,9 +111,9 @@ object RxSemantics extends SOS[QName,RxGraph] {
   }
 
 
-  
 
-    
+
+
   def next[Name >: QName](rx: RxGraph): Set[(Name, RxGraph)] =
     nextEdge(rx).map(e => e._1._3 -> e._2)
 
@@ -124,19 +135,33 @@ object RxSemantics extends SOS[QName,RxGraph] {
 
       val allUpdates = mainUpdate ++ hyperUpdates
 
-
-      var finalValEnv = rx.val_env
-      for (update <- allUpdates.reverse) { 
-        val currentVal = finalValEnv.getOrElse(update.variable, 0)
-        update.op match {
-          case "+=" => finalValEnv = finalValEnv + (update.variable -> (currentVal + update.value))
-          case "-=" => finalValEnv = finalValEnv + (update.variable -> (currentVal - update.value))
-          case ":=" => finalValEnv = finalValEnv + (update.variable -> update.value)
-          case _    => 
+      var updatesToApply = Map[QName, Int]()
+      val initialEnv = rx.val_env 
+      for (update <- allUpdates) {
+        val rhsVal = update.expr match {
+          case UpdateExpr.Lit(i) => i
+          case UpdateExpr.Var(q) => initialEnv.getOrElse(q, 0)
+          case UpdateExpr.Add(v, e) =>
+            val vVal = initialEnv.getOrElse(v, 0)
+            val eVal = e match {
+              case Left(i) => i
+              case Right(q) => initialEnv.getOrElse(q, 0)
+            }
+            vVal + eVal
+          case UpdateExpr.Sub(v, e) =>
+            val vVal = initialEnv.getOrElse(v, 0)
+            val eVal = e match {
+              case Left(i) => i
+              case Right(q) => initialEnv.getOrElse(q, 0)
+            }
+            vVal - eVal
         }
+        updatesToApply = updatesToApply + (update.variable -> rhsVal)
       }
 
-      val newAct = (rx.act ++ toAct) -- toDeact 
+      val finalValEnv = rx.val_env ++ updatesToApply
+
+      val newAct = (rx.act ++ toAct) -- toDeact
       val newInits = (rx.inits - st) + st2
 
       (edge, rx.copy(inits = newInits, act = newAct, val_env = finalValEnv))
