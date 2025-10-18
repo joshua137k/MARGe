@@ -2,7 +2,7 @@ package marge.syntax
 
 import marge.backend.RxSemantics
 import marge.syntax.Program2.EdgeMap
-
+import marge.syntax.{Condition, CounterUpdate, UpdateExpr, Statement, UpdateStmt, IfThenStmt}
 import scala.annotation.tailrec
 import scala.scalajs.js.Dynamic.global
 object Program2:
@@ -32,26 +32,49 @@ object Program2:
     def scope: QName = QName(n.init)
 
     def /(rx: RxGraph): RxGraph =
-        RxGraph(this/rx.edg, this/rx.on, this/rx.off, this/-rx.lbls,
-          this/-rx.inits, this/rx.act,
-          rx.val_env.map(kv => this/kv._1 -> kv._2), // Apply prefix to variable names
-          rx.edgeConditions.map { case (edge, condOpt) =>
-            (this/edge._1, this/edge._2, this/edge._3) -> condOpt.map { c =>
-              c.copy(
-                left = this/c.left,
-                right = c.right match {
-                  case Left(i) => Left(i)
-                  case Right(q) => Right(this/q)
-                }
-              )
-            }
-          },
-          rx.edgeUpdates.map { case (edge, updOpt) => 
-            (this/edge._1, this/edge._2, this/edge._3) -> updOpt.map { u =>
-              u.copy(variable = this/u.variable)
+      rx.copy( 
+        edg = this / rx.edg,
+        on = this / rx.on,
+        off = this / rx.off,
+        lbls = this /- rx.lbls,
+        inits = this /- rx.inits,
+        act = this / rx.act,
+        val_env = rx.val_env.map { case (k, v) => (this / k) -> v },
+        edgeConditions = rx.edgeConditions.map { case (edge, condOpt) =>
+          (this / edge._1, this / edge._2, this / edge._3) -> condOpt.map { c =>
+            c match { 
+              case Condition.AtomicCond(left, op, right) =>
+                Condition.AtomicCond(
+                  left = this / left,
+                  op = op,
+                  right = right match {
+                    case Left(i) => Left(i)
+                    case Right(q) => Right(this / q)
+                  }
+                )
+              case other => other 
             }
           }
-        )
+        },
+        edgeUpdates = rx.edgeUpdates.map { case (edge, stmtList) =>
+          (this / edge._1, this / edge._2, this / edge._3) -> stmtList.map(stmt => applyPrefixToStatement(this, stmt))
+        }
+      )
+  
+  def applyPrefixToStatement(prefix: QName, stmt: Statement): Statement = {
+    stmt match {
+      case UpdateStmt(upd) => UpdateStmt(upd.copy(variable = prefix / upd.variable)) 
+      case IfThenStmt(cond, thenStmts) =>
+        val newCond = cond match { 
+          case Condition.AtomicCond(l, op, r) => Condition.AtomicCond(prefix / l, op, r match {
+            case Left(i) => Left(i)
+            case Right(q) => Right(prefix / q)
+          })
+          case _ => cond 
+        }
+        IfThenStmt(newCond, thenStmts.map(s => applyPrefixToStatement(prefix, s)))
+    }
+  }
 
   type Edge = (QName,QName,QName) //from,to,by
   type Edges = Set[Edge]
@@ -63,58 +86,6 @@ object Program2:
   private def showEdges(abc:EdgeMap): String =
     showEdges(for (a,bcs) <- abc.toSet; (b,c)<-bcs yield (a,b,c))
 
-  case class Condition(left: QName, op: String, right: Either[Int, QName]) {
-    override def toString = right match {
-      case Left(i) => s"[${left} ${op} ${i}]"
-      case Right(q) => s"[${left} ${op} ${q}]"
-    }
-
-    // Retorna apenas a expressão, sem parênteses externos
-    def toMermaidString: String = right match {
-      case Left(i) => s"${left.show} ${op} ${i}"
-      case Right(q) => s"${left.show} ${op} ${q.show}"
-    }
-  }
-
-  sealed trait UpdateExpr
-  object UpdateExpr {
-    case class Lit(i: Int) extends UpdateExpr
-    case class Var(q: QName) extends UpdateExpr
-    case class Add(v: QName, e: Either[Int, QName]) extends UpdateExpr
-    case class Sub(v: QName, e: Either[Int, QName]) extends UpdateExpr
-
-    def show(expr: UpdateExpr): String = expr match {
-      case Lit(i) => i.toString
-      case Var(q) => q.show
-      case Add(v, Left(i)) => s"${v.show} + $i"
-      case Add(v, Right(q)) => s"${v.show} + ${q.show}"
-      case Sub(v, Left(i)) => s"${v.show} - $i"
-      case Sub(v, Right(q)) => s"${v.show} - ${q.show}"
-    }
-  }
-
-  case class CounterUpdate(variable: QName, expr: UpdateExpr) {
-    override def toString: String = s"${variable.show}' := ${UpdateExpr.show(expr)}"
-  }
-
-  object Condition {
-    def evaluate(condition: Condition, env: Map[QName, Int]): Boolean = {
-      val leftVal = env.getOrElse(condition.left, 0)
-      val rightVal = condition.right match {
-        case Left(i) => i
-        case Right(qname) => env.getOrElse(qname, 0)
-      }
-      condition.op match {
-        case ">=" => leftVal >= rightVal
-        case "<=" => leftVal <= rightVal
-        case "==" => leftVal == rightVal
-        case "!=" => leftVal != rightVal
-        case ">"  => leftVal > rightVal
-        case "<"  => leftVal < rightVal
-        case _    => false
-      }
-    }
-  }
 
   /**
    * Reactive graph.
@@ -133,9 +104,9 @@ object Program2:
                      lbls: Map[QName,Edges],
                      inits: Set[QName],
                      act: Edges,
-                     val_env: Map[QName, Int], //  ambiente de valores para variáveis
-                     edgeConditions: Map[Edge, Option[Condition]], //  condições associadas a arestas
-                     edgeUpdates: Map[Edge, List[CounterUpdate]] 
+                     val_env: Map[QName, Int], 
+                     edgeConditions: Map[Edge, Option[Condition]], 
+                     edgeUpdates: Map[Edge, List[Statement]] 
                     ):
 
     def showSimple: String =
@@ -151,22 +122,21 @@ object Program2:
     def states =
       for (src,dests)<-edg.toSet; (d,_)<-dests; st <- Set(src,d) yield st
 
-    // Métodos para aceitarOption[Condition] e Option[CounterUpdate]
-    def addEdge(s1:QName,s2:QName,l:QName, cond: Option[Condition] = None, upd: List[CounterUpdate] = Nil) = 
+    def addEdge(s1:QName,s2:QName,l:QName, cond: Option[Condition] = None, upd: List[Statement] = Nil) = 
       this.copy(edg = add(s1->(s2,l),edg),
         lbls = add(l->(s1,s2,l),lbls),
         act = act+((s1,s2,l)),
         edgeConditions = edgeConditions + (((s1,s2,l) -> cond)),
         edgeUpdates = edgeUpdates + (((s1,s2,l) -> upd))) 
 
-    def addOn(s1:QName,s2:QName,l:QName, cond: Option[Condition] = None, upd: List[CounterUpdate] = Nil) = 
+    def addOn(s1:QName,s2:QName,l:QName, cond: Option[Condition] = None, upd: List[Statement] = Nil) = 
       this.copy(on  = add(s1->(s2,l),on),
         lbls = add(l->(s1,s2,l),lbls),
         act = act+((s1,s2,l)),
         edgeConditions = edgeConditions + (((s1,s2,l) -> cond)),
         edgeUpdates = edgeUpdates + (((s1,s2,l) -> upd))) 
 
-    def addOff(s1:QName,s2:QName,l:QName, cond: Option[Condition] = None, upd: List[CounterUpdate] = Nil) = 
+    def addOff(s1:QName,s2:QName,l:QName, cond: Option[Condition] = None, upd: List[Statement] = Nil) = 
       this.copy(off = add(s1->(s2,l),off),
         lbls = add(l->(s1,s2,l),lbls),
         act = act+((s1,s2,l)),
@@ -184,9 +154,9 @@ object Program2:
       RxGraph(
         join(edg,r.edg),join(on,r.on),join(off,r.off),
         join(lbls,r.lbls),inits++r.inits,act++r.act,
-        val_env ++ r.val_env, // Mescla ambientes de variáveis
-        edgeConditions ++ r.edgeConditions, // Mescla condições de arestas
-        edgeUpdates ++ r.edgeUpdates // Mescla atualizações de arestas
+        val_env ++ r.val_env, 
+        edgeConditions ++ r.edgeConditions, 
+        edgeUpdates ++ r.edgeUpdates 
       )
 
 
@@ -265,17 +235,18 @@ object Program2:
         val condText   = if withConditions then rx.edgeConditions.getOrElse(edge, None).map(_.toMermaidString).getOrElse("") else ""
         val combined   = List(condText,qNameLabel,updText).filter(_.nonEmpty).mkString(" ")
         
+        val edgeLabel = if combined.nonEmpty then s"|\"${combined}\"|" else ""
+
         if c.n.isEmpty then
-          val edgeLabel = if combined.nonEmpty then s"|${combined}|" else ""
           s"  $a2 $line$tip $edgeLabel $b2\n" +
           s"  linkStyle ${fresh()} $style\n"
         
         else if simple then
-          s"  $a2 $line$tip |$combined| $b2\n" +
+          s"  $a2 $line$tip $edgeLabel $b2\n" +
           s"  linkStyle ${fresh()} $style\n"
         
         else
-          s"  $a2 $line $a$b$c( ) $line$tip |$combined| $b2\n" +
+          s"  $a2 $line $a$b$c( ) $line$tip $edgeLabel $b2\n" +
           s"  style $a$b$c width: 0\n" +
           s"  linkStyle ${fresh()} $style\n" +
           s"  linkStyle ${fresh()} $style\n"

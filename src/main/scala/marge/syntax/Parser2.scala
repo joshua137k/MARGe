@@ -3,8 +3,9 @@ package marge.syntax
 import cats.parse.Parser.*
 import cats.parse.{LocationMap, Parser as P, Parser0 as P0}
 import cats.parse.Rfc5234.{alpha, digit, sp}
-import marge.syntax.Program2.{Condition, CounterUpdate, QName, RxGraph, UpdateExpr}
-
+import marge.syntax.Program2.{RxGraph,QName}
+import marge.syntax.{Condition, CounterUpdate, UpdateExpr, Statement, UpdateStmt, IfThenStmt}
+import marge.syntax.Condition.*
 import scala.sys.error
 
 object Parser2 :
@@ -15,7 +16,7 @@ object Parser2 :
         val trimmedLine = line.trim
         if (trimmedLine.isEmpty ||
             trimmedLine.contains("{") ||
-            trimmedLine.endsWith(";")
+            trimmedLine.endsWith(";") 
         ) {
           line
         } else {
@@ -23,6 +24,8 @@ object Parser2 :
         }
       }
       .mkString("\n")
+
+    //println("--- Parser Input ---\n" + processedStr + "\n--------------------")
     pp(program,processedStr) match
       case Left(e) => error(e)
       case Right(c) => c
@@ -102,15 +105,36 @@ object Parser2 :
     P.string("!=").as("!=") |
     P.string(">").as(">") |
     P.string("<").as("<")
-  )
+  ).surroundedBy(sps)
+
   def intOrQName: P[Either[Int, QName]] =
     integer.map(Left(_)) | qname.map(Right(_))
 
-  def conditionExpr: P[Condition] =
-    (qname ~
-      (sps *> comparisonOp) ~
-      (sps *> intOrQName)
-    ).map { case ((left, op), right) => Condition(left, op, right) }
+  private lazy val conditionTerm: P[Condition] = P.defer {
+    val atomic: P[Condition] =
+      (qname.surroundedBy(sps) ~ comparisonOp ~ intOrQName.surroundedBy(sps))
+        .map { case ((left, op), right) => AtomicCond(left, op, right) }
+
+    val parens: P[Condition] =
+      conditionExpr.between(P.char('(').surroundedBy(sps), P.char(')').surroundedBy(sps))
+
+    (atomic.backtrack | parens).surroundedBy(sps)
+  }
+
+  private val andOp = P.string("AND").surroundedBy(sps)
+  private val orOp = P.string("OR").surroundedBy(sps)
+
+  private lazy val andCondition: P[Condition] =
+    (conditionTerm ~ (andOp *> conditionTerm).rep0).map {
+      case (head, tail) => tail.foldLeft(head)(And.apply)
+    }
+
+  private lazy val orCondition: P[Condition] =
+    (andCondition ~ (orOp *> andCondition).rep0).map {
+      case (head, tail) => tail.foldLeft(head)(Or.apply)
+    }
+      
+  def conditionExpr: P[Condition] = orCondition
 
   def condition: P[Condition] =
     P.string("if") *> sps *> conditionExpr
@@ -132,26 +156,36 @@ object Parser2 :
     (qname <* P.char('\'').surroundedBy(sps) <* P.string(":=").surroundedBy(sps)) ~ updateExpr
   }.map { case (lhs, expr) => CounterUpdate(lhs, expr) }
 
+  def statementParser: P[Statement] = P.recursive { self =>
+    val updateStmt = counterUpdate.map(UpdateStmt.apply)
+    val ifThenStmt = (
+      P.string("if") *> sps *> conditionExpr ~
+      (sps *> P.string("then") *> sps *> P.char('{') *> sps *>
+        self.repSep(sep) <* sep.? <* sps <* P.char('}') )
+    ).map { case (cond, stmts) => IfThenStmt(cond, stmts.toList) }
+    
+    ifThenStmt.backtrack | updateStmt
+  }
 
-  def guardBlock: P[(Option[Condition], List[CounterUpdate])] =
+  def guardBlock: P[(Option[Condition], List[Statement])] =
     (P.string("if") *> sps *> conditionExpr ~
       (sps *> P.string("then") *> sps *> P.char('{') *> sps *>
-        (counterUpdate.repSep(sep) <* sep.?) <* sps <* P.char('}'))
-    ).map { case (cond, updates) => (Some(cond), updates.toList) }
+        (statementParser.repSep(sep) <* sep.?) <* sps <* P.char('}'))
+    ).map { case (cond, stmts) => (Some(cond), stmts.toList) }
 
-  def inlineGuard: P[(Option[Condition], List[CounterUpdate])] = {
+  def inlineGuard: P[(Option[Condition], List[Statement])] = {
     val condThenMaybeUpdate = (condition ~ (sps *> counterUpdate).?).map {
-      case (cond, updOpt) => (Some(cond), updOpt.toList)
+      case (cond, updOpt) => (Some(cond), updOpt.map(u => UpdateStmt(u)).toList)
     }
     val justUpdate = counterUpdate.map { upd =>
-      (None, List(upd))
+      (None, List(UpdateStmt(upd)))
     }
     condThenMaybeUpdate.backtrack | justUpdate
   }
 
   private sealed trait EdgeAttribute
   private case class Label(name: QName) extends EdgeAttribute
-  private case class Guard(cond: Option[Condition], updates: List[CounterUpdate]) extends EdgeAttribute
+  private case class Guard(cond: Option[Condition], updates: List[Statement]) extends EdgeAttribute
   private case object Disabled extends EdgeAttribute
 
 
@@ -165,7 +199,7 @@ object Parser2 :
     val attribute: P[EdgeAttribute] = sps.with1 *> (labelAttr | disabledAttr| guardAttr  )
     val attributesParser: P0[List[EdgeAttribute]] = attribute.rep0
 
-    type ArrowFunc = (QName, QName, QName, Option[Condition], List[CounterUpdate]) => RxGraph
+    type ArrowFunc = (QName, QName, QName, Option[Condition], List[Statement]) => RxGraph
 
     val coreEdgeParser: P[(QName, ArrowFunc, QName)] =
       qname.flatMap { n1 =>
@@ -179,7 +213,7 @@ object Parser2 :
       }
 
     (coreEdgeParser ~ attributesParser).map { case ((n1, arFunc, n2), attrs) =>
-      val (lbl, guardCond, guardUpd, isDisabled) = attrs.foldLeft((QName(Nil), None: Option[Condition], Nil: List[CounterUpdate], false)) {
+      val (lbl, guardCond, guardUpd, isDisabled) = attrs.foldLeft((QName(Nil), None: Option[Condition], Nil: List[Statement], false)) {
         case ((_, c, u, d), Label(name)) => (name, c, u, d)
         case ((l, _, _, d), Guard(cond, updates)) => (l, cond, updates, d)
         case ((l, c, u, _), Disabled) => (l, c, u, true)
@@ -191,14 +225,14 @@ object Parser2 :
   }
 
 
-  def arrow: P[(QName,QName,QName, Option[Condition], List[CounterUpdate])=>RxGraph] =
+  def arrow: P[(QName,QName,QName, Option[Condition], List[Statement])=>RxGraph] =
     P.string("-->").as(RxGraph().addEdge) |
     P.string("->>").as(RxGraph().addOn) |
     P.string("--!").as(RxGraph().addOff) |
     P.string("--x").as(RxGraph().addOff) |
-    P.string("--#--").as((a:QName,b:QName,c:QName, cond: Option[Condition], upd: List[CounterUpdate]) => RxGraph()
+    P.string("--#--").as((a:QName,b:QName,c:QName, cond: Option[Condition], upd: List[Statement]) => RxGraph()
       .addOff(a,b,c, cond, upd).addOff(b,a,c, cond, upd)) |
-    P.string("---->").as((a:QName,b:QName,c:QName, cond: Option[Condition], upd: List[CounterUpdate]) => RxGraph()
+    P.string("---->").as((a:QName,b:QName,c:QName, cond: Option[Condition], upd: List[Statement]) => RxGraph()
       .addOn(a,b,c, cond, upd).addOff(b,b,c, cond, upd))
 
   object Examples:

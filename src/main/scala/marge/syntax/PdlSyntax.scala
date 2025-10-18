@@ -1,6 +1,7 @@
 package marge.syntax
 import marge.syntax.PdlProgram
-import marge.syntax.Program2.{Condition, QName}
+import marge.syntax.Program2.QName
+import marge.syntax.Condition.*
 
 
 

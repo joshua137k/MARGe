@@ -19,25 +19,21 @@ object Main:
 
 
 
-      // CORRIGIDO: Usando a sintaxe 'if'
-      val conditionalGraph = Parser2.parseProgram(
-        """
-          int counter = 0
-          init start
-          start --> middle: step1 if counter < 2
-          middle --> endN: activateStep2 if counter == 1
-        """
-      )
-      println("\nGrafo com variável e condição parseado:")
-      println(conditionalGraph.toString)
-
-      // CORRIGIDO: Usando a sintaxe 'if'
       val conditionalGraph2 = Parser2.parseProgram(
         """
-          int counter = 0
-          init start
-          start --> middle: step1 if counter < 2 counter' := counter + 1
-          middle --> endN: activateStep2 if counter == 1
+          int a_active = 1
+          int b_active = 0
+          int offA_active = 0
+
+          init s0
+
+          s0 --> s1: a if (a_active == 1) then {
+              b_active' := 1;
+              if (offA_active == 1) then {
+                  a_active' := 0
+              }
+          }
+          s1 --> s0: b if (b_active == 1) offA_active' := 1
         """
       )
       println("\nGrafo com variável e condição parseado:")

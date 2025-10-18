@@ -4,7 +4,9 @@ import cats.parse.{Parser => P, Parser0 => P0}
 import cats.parse.Rfc5234.{alpha, digit, wsp}
 import marge.syntax.Formula.*
 import marge.syntax.PdlProgram.*
-import marge.syntax.Program2.{Condition, QName}
+import marge.syntax.Program2.QName
+import marge.syntax.Condition
+
 
 /**
  * Supports:
@@ -48,7 +50,7 @@ object ModalParser {
 
   private def pdlConditionParser: P[Condition] =
     (pdlQNameParser ~ comparisonOp ~ intOrQName)
-      .map { case ((left, op), right) => Condition(left, op, right) }
+      .map { case ((left, op), right) => Condition.AtomicCond(left, op, right) }
 
   private def sym(s: String): P[Unit] = P.string(s).surroundedBy(sps)
 

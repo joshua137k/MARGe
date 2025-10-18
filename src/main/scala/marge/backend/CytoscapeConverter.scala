@@ -1,8 +1,24 @@
 package marge.backend
 
-import marge.syntax.Program2.{Condition, Edge, QName, RxGraph, UpdateExpr}
+import marge.syntax.Program2.{Edge, RxGraph, QName}
+import marge.syntax.{Condition, UpdateExpr, Statement, UpdateStmt, IfThenStmt}
 
 object CytoscapeConverter {
+
+
+  private def formatStatements(stmts: List[Statement], indent: String = ""): String = {
+    stmts.map {
+      case UpdateStmt(upd) =>
+        s"${indent}${upd.variable.show}' := ${UpdateExpr.show(upd.expr)}"
+      case IfThenStmt(condition, thenStmts) =>
+        val conditionLine = s"${indent}if (${condition.toMermaidString}) then {"
+        // Chamada recursiva para o bloco 'then' com maior indentação
+        val thenBlock = formatStatements(thenStmts, indent + "  ")
+        val closingBrace = s"${indent}}"
+        // Junta as partes, garantindo que blocos vazios ainda sejam exibidos corretamente
+        Seq(conditionLine, thenBlock, closingBrace).filter(_.nonEmpty).mkString("\n")
+    }.mkString("\n")
+  }
 
   def apply(rx: RxGraph): String = {
     val allSimpleEdges = rx.edg.flatMap { case (f, ts) => ts.map(t => (f, t._1, t._2)) }.toSet
@@ -10,8 +26,6 @@ object CytoscapeConverter {
     val allOffEdges = rx.off.flatMap { case (f, ts) => ts.map(t => (f, t._1, t._2)) }.toSet
 
     val edgesThatCreateNodes = allSimpleEdges.filter(_.  _3.n.nonEmpty) ++ allOnEdges ++ allOffEdges
-
-
 
     val allQNames = rx.states ++ edgesThatCreateNodes.flatMap(e => Set(e._1, e._2, e._3))
     val parentQNames = allQNames.flatMap(q => (1 until q.n.length).map(i => QName(q.n.take(i)))).toSet
@@ -33,38 +47,30 @@ object CytoscapeConverter {
       val (from, to, lbl) = edge
       val id = s"event_${from}_${to}_${lbl}"
 
-
       val parentId = List(lbl, from, to)
         .find(_.n.size > 1)
         .map(_.scope.toString)
 
       val parentJson = parentId.map(p => s""", "parent": "$p"""").getOrElse("")
 
-      val isEnabled = rx.act.contains(edge) //&& isConditionSatisfied(edge, rx)
+      val isEnabled = rx.act.contains(edge)
       val nodeTypeClass = if (allSimpleEdges.contains(edge)) "action-node" else "rule-node"
       val classes = s"event-node $nodeTypeClass " + (if (isEnabled) "enabled" else "disabled")
       s"""{ "data": { "id": "$id", "label": "${lbl.show}" ${parentJson} }, "classes": "$classes" }"""
     }
 
-
     val simpleConnections = allSimpleEdges.filter(_.  _3.n.nonEmpty).flatMap { edge =>
       val (from, to, lbl) = edge
       val actionNodeId = s"event_${from}_${to}_${lbl}"
-      val isDisabled = !rx.act.contains(edge) //|| !isConditionSatisfied(edge, rx)
+      val isDisabled = !rx.act.contains(edge)
       val disabledClass = if (isDisabled) " disabled" else ""
+      
       val conditionLabel = rx.edgeConditions.getOrElse(edge, None)
-        .map { cond =>
-            val rightStr = cond.right match {
-                case Left(i) => i.toString
-                case Right(q) => q.show
-            }
-            s"[${cond.left.show} ${cond.op} $rightStr]"
-        }.getOrElse("")
+        .map(cond => s"[${cond.toMermaidString}]")
+        .getOrElse("")
 
-      val updateLabel = rx.edgeUpdates.getOrElse(edge, Nil)
-        .map { upd =>
-          s"${upd.variable.show}' := ${UpdateExpr.show(upd.expr)}"
-        }.mkString("\\n") // Use newline for multiple updates
+      val updates = rx.edgeUpdates.getOrElse(edge, Nil)
+      val updateLabel = formatStatements(updates).replace("\n", " ")
 
       List(
         formatCyEdge(s"s_to_a_${from}_${actionNodeId}", from.toString, actionNodeId, conditionLabel, s"simple-conn$disabledClass"),
@@ -79,7 +85,7 @@ object CytoscapeConverter {
       val fromEventNodes = edgesThatCreateNodes.filter(_._3 == fromLabel)
       val toEventNodes = edgesThatCreateNodes.filter(_._3 == toLabel)
 
-      val isRuleDisabled = !rx.act.contains(ruleEdge) //|| !isConditionSatisfied(ruleEdge, rx)
+      val isRuleDisabled = !rx.act.contains(ruleEdge)
       val disabledClass = if (isRuleDisabled) " disabled" else ""
       val ruleClass = if (allOnEdges.contains(ruleEdge)) "enable-rule" else "disable-rule"
 

@@ -1,6 +1,8 @@
 package marge.backend
 
-import marge.syntax.Program2.{QName, RxGraph, Condition}
+import marge.syntax.Program2.{QName, RxGraph}
+import marge.syntax.Condition
+
 import marge.syntax.Formula as PdlFormula
 import marge.syntax.Formula.*
 import marge.syntax.PdlProgram
