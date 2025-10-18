@@ -43,6 +43,18 @@ function extractMermaidEdgeLabelPositions(mermaidContainerId) {
 }
 
 
+function changeEdgeStyle(styleName) {
+    if (!currentCytoscapeInstance) return;
+
+    const edgesToStyle = currentCytoscapeInstance.edges('.simple-conn, .from-action-node');
+
+    edgesToStyle.removeClass('arc taxi straight');
+
+    if (styleName) {
+        edgesToStyle.addClass(styleName);
+    }
+}
+
 function renderCytoscapeGraph(mainContainerId, combinedJsonData, isFirstRender) {
     var mainContainer = document.getElementById(mainContainerId);
     if (!mainContainer) {
@@ -230,6 +242,7 @@ function setupInitialCytoscape(mainContainerId, combinedJsonData) {
                 { selector: '.current-state', style: { 'background-color': '#9ece6a', 'border-color': '#c0caf5' } },
                 { selector: 'node.event-node', style: { 'background-color': '#414868', 'shape': 'rectangle', 'width': 50, 'height': 30, 'border-width': 2, 'border-color': '#565f89' } },
                 { selector: 'edge', style: { 'target-arrow-shape': 'none' } },
+                
                 { selector: 'edge.from-action-node', style: { 'target-arrow-shape': 'triangle' } },
                 { selector: '.enable-rule', style: { 'line-color': '#7aa2f7', 'target-arrow-color': '#7aa2f7' } },
                 { selector: '.disable-rule', style: { 'line-color': '#f7768e', 'target-arrow-color': '#f7768e' } },
@@ -240,6 +253,13 @@ function setupInitialCytoscape(mainContainerId, combinedJsonData) {
                 { selector: 'edge.transition-flash', style: {'line-color': '#ff9e64','target-arrow-color': '#ff9e64','source-arrow-color': '#ff9e64','width': 4}},
                 { selector: '.trace-path', style: { 'line-color': '#7dcfff', 'target-arrow-color': '#7dcfff', 'source-arrow-color': '#7dcfff', 'width': 3.5, 'opacity': 0.9 } },
                 { selector: '.compound-parent', style: { 'background-color': '#1a1b26', 'background-opacity': 1, 'border-color': '#c0caf5', 'border-width': 2,'content': 'data(label)', 'text-valign': 'top','text-halign': 'center','color': '#c0caf5','font-weight': 'bold','font-size': '16px'} },
+                {selector: 'edge.simple-conn.arc',style: { 'curve-style': 'unbundled-bezier', 'control-point-distances': '80', 'control-point-weights': '0.9', 'target-arrow-shape': 'none' }},
+                {selector: 'edge.from-action-node.arc',style: { 'curve-style': 'unbundled-bezier', 'control-point-distances': '80', 'control-point-weights': '0.1', 'target-arrow-shape': 'triangle' }},
+                {selector: 'edge.simple-conn.taxi',style: { 'curve-style': 'taxi', 'taxi-direction': 'vertical', 'taxi-turn': '25px', 'target-arrow-shape': 'none' }},
+                {selector: 'edge.from-action-node.taxi',style: { 'curve-style': 'taxi', 'taxi-direction': 'vertical', 'taxi-turn': '25px', 'target-arrow-shape': 'triangle' }},
+                {selector: 'edge.simple-conn.straight',style: { 'curve-style': 'straight', 'target-arrow-shape': 'none' }},
+                {selector: 'edge.from-action-node.straight',style: { 'curve-style': 'straight', 'target-arrow-shape': 'triangle' }},
+
             ],
             layout: {
                 name: layoutName,
@@ -264,6 +284,7 @@ function setupInitialCytoscape(mainContainerId, combinedJsonData) {
         cy.on('mouseout', 'node.event-node.enabled', function(e) { e.cy.container().style.cursor = 'default'; });
 
         currentCytoscapeInstance = cy;
+        changeEdgeStyle('straight'); 
 
     } catch (e) {
         console.error("Falha ao analisar ou renderizar a UI:", e);
@@ -336,6 +357,29 @@ function updateSidePanel(panelId, panelData) {
     layoutSelectorContainer.appendChild(layoutLabel);
     layoutSelectorContainer.appendChild(layoutSelector);
     panelDiv.appendChild(layoutSelectorContainer); 
+
+    var edgeStyleContainer = document.createElement('div');
+    edgeStyleContainer.style.marginTop = '10px';
+    var edgeStyleLabel = document.createElement('label');
+    edgeStyleLabel.innerText = 'Estilo de Aresta: ';
+    edgeStyleLabel.htmlFor = 'edgeStyleSelector';
+    var edgeStyleSelector = document.createElement('select');
+    edgeStyleSelector.id = 'edgeStyleSelector';
+    edgeStyleSelector.innerHTML = `
+        <option value="arc">Curvo (Arco)</option>
+        <option value="taxi">Reto (Circuito)</option>
+        <option value="straight">Direto</option>
+    `;
+    
+    edgeStyleSelector.value = 'straight';
+
+    edgeStyleSelector.onchange = function(event) {
+        changeEdgeStyle(event.target.value);
+    };
+
+    edgeStyleContainer.appendChild(edgeStyleLabel);
+    edgeStyleContainer.appendChild(edgeStyleSelector);
+    panelDiv.appendChild(edgeStyleContainer);
 
     layoutSelector.onchange = function(event) {
         var layoutName = event.target.value;
