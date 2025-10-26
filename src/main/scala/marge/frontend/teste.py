@@ -136,27 +136,18 @@ def convert_to_uppaal_xml_functions_always(input_text):
 
 
 input_graph = """
-int GetChoc_active = 1
-int GetCoffee_active = 1
-int ct50_active = 1
-int eur1_active = 1
-int lastct50_active = 0
+int a_active = 1
+int b_active = 1
+int offA_active = 1
 
-init Insert
+init s0
 
-Insert --> Coffee: ct50 if (ct50_active == 1) then {
-    eur1_active' := 0
-    if (lastct50_active == 1) then {
-        ct50_active' := 0
+s0 --> s1: a if (a_active == 1) then {
+    if (offA_active == 1) then {
+        a_active' := 0
     }
-    lastct50_active' := 1
 }
-Insert --> Chocolate: eur1 if (eur1_active == 1) then {
-    ct50_active' := 0
-    eur1_active' := 0
-}
-Coffee --> Insert: GetCoffee if (GetCoffee_active == 1) then {}
-Chocolate --> Insert: GetChoc if (GetChoc_active == 1) then {}
+s1 --> s0: b if (b_active == 1) then {}
 """
 
 uppaal_xml = convert_to_uppaal_xml_functions_always(input_graph)

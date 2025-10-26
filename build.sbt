@@ -14,8 +14,9 @@ lazy val marge = project.in(file("."))
     Compile / mainClass := Some("marge.frontend.Main"),
     Compile / fastLinkJS / scalaJSLinkerOutputDirectory := baseDirectory.value / "lib" / "caos"/ "tool" / "js" / "gen",
     libraryDependencies ++= Seq(
-      "org.typelevel" %%% "cats-parse" % "0.3.4",  // parser combinators
-      "org.scalameta" %% "munit" % "0.7.29" % Test // unit tests
+      "org.typelevel" %%% "cats-parse" % "0.3.4", 
+      "org.scala-lang.modules" %%% "scala-xml" % "2.2.0",
+      "org.scalameta" %% "munit" % "0.7.29" % Test
     )
   )
   .dependsOn(caos)

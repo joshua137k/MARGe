@@ -13,7 +13,8 @@ import caos.frontend.widgets.WidgetInfo.Custom
 import scala.scalajs.js
 import org.scalajs.dom 
 import org.scalajs.dom.html
-
+import org.scalajs.dom.{Blob, BlobPropertyBag}
+import scala.scalajs.js.URIUtils
 
 import marge.syntax.{Formula as PdlFormula}
 import marge.syntax.PdlParser
@@ -100,6 +101,20 @@ object CaosConfig2 extends Configurator[RxGraph]:
         global.renderCytoscapeGraph("cytoscapeMainContainer", fullJson, false)
       }
     }
+  }
+
+  private def downloadFile(filename: String, content: String): Unit = {
+    val blob = new Blob(js.Array(content), BlobPropertyBag("text/xml;charset=utf-8"))
+    val link = dom.document.createElement("a").asInstanceOf[html.Anchor]
+    
+    link.href = dom.URL.createObjectURL(blob)
+    link.asInstanceOf[js.Dynamic].download = filename
+    link.style.visibility = "hidden"
+    
+    dom.document.body.appendChild(link)
+    link.click()
+    dom.document.body.removeChild(link)
+    dom.URL.revokeObjectURL(link.href) 
   }
 
   
@@ -303,6 +318,35 @@ object CaosConfig2 extends Configurator[RxGraph]:
       },
       buttons = List()
     ),
+
+    "Uppaal Export" -> Custom("uppaalExportContainer",
+      (stx: RxGraph) => {
+        val div = dom.document.getElementById("uppaalExportContainer")
+        if (div != null && div.childElementCount == 0) {
+          val button = dom.document.createElement("button").asInstanceOf[html.Button]
+          button.textContent = "Translate & Download Uppaal XML"
+          button.className = "btn btn-info"
+
+          button.onclick = (e: dom.MouseEvent) => {
+            val editorElement = dom.document.querySelector(".CodeMirror").asInstanceOf[js.Dynamic]
+
+            if (editorElement != null && !js.isUndefined(editorElement.CodeMirror)) {
+              val cm_instance = editorElement.CodeMirror.asInstanceOf[js.Dynamic]
+              val currentCode = cm_instance.getValue().toString              
+              val uppaalXml = UppaalConverter.convert(currentCode)
+
+              downloadFile("model.xml", uppaalXml)
+
+            } else {
+              dom.window.alert("CodeMirror editor instance not found.")
+            }
+          }
+          div.appendChild(button)
+        }
+      },
+      buttons = List()
+    ),
+
     "PDL Analysis" -> Custom("pdlCombinedArea", (stx: RxGraph) => {
       val mainDivId = "pdlCombinedArea"
       val stateInputId = "pdlStateInput"
