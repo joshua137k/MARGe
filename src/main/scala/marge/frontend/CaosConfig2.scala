@@ -320,27 +320,27 @@ object CaosConfig2 extends Configurator[RxGraph]:
     ),
 
     "Uppaal Export" -> Custom("uppaalExportContainer",
-      (stx: RxGraph) => {
+      (stx: RxGraph) => { // 'stx' é o seu RxGraph atual e correto
         val div = dom.document.getElementById("uppaalExportContainer")
-        if (div != null && div.childElementCount == 0) {
+        if (div != null) {
+          // *** MUDANÇA PRINCIPAL: Limpa o container antes de adicionar o novo botão ***
+          div.innerHTML = "" 
+
           val button = dom.document.createElement("button").asInstanceOf[html.Button]
           button.textContent = "Translate & Download Uppaal XML"
           button.className = "btn btn-info"
 
+          // Agora, o onclick é recriado toda vez, capturando o 'stx' mais recente.
           button.onclick = (e: dom.MouseEvent) => {
-            val editorElement = dom.document.querySelector(".CodeMirror").asInstanceOf[js.Dynamic]
-
-            if (editorElement != null && !js.isUndefined(editorElement.CodeMirror)) {
-              val cm_instance = editorElement.CodeMirror.asInstanceOf[js.Dynamic]
-              val currentCode = cm_instance.getValue().toString              
-              val uppaalXml = UppaalConverter.convert(currentCode)
-
+            try {
+              val uppaalXml = UppaalConverter.convert(stx)
               downloadFile("model.xml", uppaalXml)
-
-            } else {
-              dom.window.alert("CodeMirror editor instance not found.")
+            } catch {
+              case t: Throwable =>
+                dom.window.alert(s"Erro durante a conversão para Uppaal:\n${t.getMessage}")
             }
           }
+          
           div.appendChild(button)
         }
       },
