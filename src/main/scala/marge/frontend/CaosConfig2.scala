@@ -320,28 +320,49 @@ object CaosConfig2 extends Configurator[RxGraph]:
     ),
 
     "Uppaal Export" -> Custom("uppaalExportContainer",
-      (stx: RxGraph) => { // 'stx' é o seu RxGraph atual e correto
+      (stx: RxGraph) => { 
         val div = dom.document.getElementById("uppaalExportContainer")
+        val editorElement = dom.document.querySelector(".CodeMirror").asInstanceOf[js.Dynamic]
+        val cm_instance = editorElement.CodeMirror.asInstanceOf[js.Dynamic]
+        val currentCode = cm_instance.getValue().toString
         if (div != null) {
-          // *** MUDANÇA PRINCIPAL: Limpa o container antes de adicionar o novo botão ***
-          div.innerHTML = "" 
+          div.innerHTML = ""
 
-          val button = dom.document.createElement("button").asInstanceOf[html.Button]
-          button.textContent = "Translate & Download Uppaal XML"
-          button.className = "btn btn-info"
 
-          // Agora, o onclick é recriado toda vez, capturando o 'stx' mais recente.
-          button.onclick = (e: dom.MouseEvent) => {
+          val buttonStable = dom.document.createElement("button").asInstanceOf[html.Button]
+          buttonStable.textContent = "Download XML (Stable)"
+          buttonStable.className = "btn btn-secondary"
+          buttonStable.style.marginRight = "5px" 
+
+          buttonStable.onclick = (e: dom.MouseEvent) => {
             try {
-              val uppaalXml = UppaalConverter.convert(stx)
-              downloadFile("model.xml", uppaalXml)
+              val uppaalXml = UppaalConverter2.convert(currentCode)
+              downloadFile("model_stable.xml", uppaalXml)
             } catch {
               case t: Throwable =>
-                dom.window.alert(s"Erro durante a conversão para Uppaal:\n${t.getMessage}")
+                dom.window.alert(s"Error during stable Uppaal conversion:\n${t.getMessage}")
             }
           }
+          div.appendChild(buttonStable)
           
-          div.appendChild(button)
+
+
+          val buttonNew = dom.document.createElement("button").asInstanceOf[html.Button]
+          buttonNew.textContent = "Download XML"
+          buttonNew.className = "btn btn-info"
+
+          buttonNew.onclick = (e: dom.MouseEvent) => {
+            try {
+              
+                val uppaalXml = UppaalConverter.convert(stx, currentCode)
+                downloadFile("model.xml", uppaalXml)
+
+            } catch {
+              case t: Throwable =>
+                dom.window.alert(s"Error during Uppaal conversion:\n${t.getMessage}\nCheck browser console for details.")
+            }
+          }
+          div.appendChild(buttonNew)
         }
       },
       buttons = List()

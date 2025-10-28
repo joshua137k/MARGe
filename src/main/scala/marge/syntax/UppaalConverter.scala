@@ -1,13 +1,14 @@
 package marge.backend
-
+import marge.syntax.Program2
 import marge.syntax.Program2.{Edge, QName, RxGraph}
 import marge.syntax.Condition
 
 import scala.xml._
+import scala.collection.mutable
+import scala.util.matching.Regex
 
 object UppaalConverter {
 
-  /** Converte uma condição MaRGe para a sintaxe C do UPPAAL. */
   private def conditionToString(cond: Condition): String = cond match {
     case Condition.AtomicCond(left, op, right) =>
       val leftStr = left.show.replaceAll("[^a-zA-Z0-9_]", "_")
@@ -20,17 +21,19 @@ object UppaalConverter {
     case Condition.Or(l, r) => s"(${conditionToString(l)}) || (${conditionToString(r)})"
   }
 
-  def convert(rxGraph: RxGraph): String = {
+  private def stringToQName(str: String): QName = {
+    if (str.isEmpty) Program2.QName(Nil)
+    else Program2.QName(str.split('/').toList)
+  }
+
+  def convert(rxGraph: RxGraph, currentCode: String): String = {
     
-    // =======================================================================
-    // PASSO 1: Mapear todos os elementos do modelo para IDs e Índices estáveis
-    // =======================================================================
+
 
     val allStates = rxGraph.states.toList.sortBy(_.toString)
     val stateToId = allStates.zipWithIndex.map { case (qname, i) => qname -> s"id$i" }.toMap
 
-    val actionLabels = (rxGraph.edg.values.flatten.map(_._2) ++ rxGraph.on.keys ++ rxGraph.off.keys)
-      .toSet.toList.sorted(Ordering.by[QName, String](_.toString))
+    val actionLabels = rxGraph.edg.values.flatten.map(_._2).toSet.toList.sorted(Ordering.by[QName, String](_.toString))
     val labelToId: Map[QName, Int] = actionLabels.zipWithIndex.toMap
 
     val simpleEdges = rxGraph.edg.flatMap { case (from, tos) =>
@@ -38,46 +41,99 @@ object UppaalConverter {
     }.toList.distinct.sortBy(edge => (labelToId.getOrElse(edge._3, -1), edge._1.toString, edge._2.toString))
     val edgeToIndex: Map[Edge, Int] = simpleEdges.zipWithIndex.toMap
 
-    type HyperEdgeIdentity = (String, QName, QName, QName) // (type, trigger, target, label)
+    type HyperEdgeIdentity = (String, QName, QName, QName)
+    
+    val ruleToLineNumber = {
+
+      val ruleRegexFull = """^\s*([\w./]+)\s*(->>|--!)\s*([\w./]+)\s*:\s*([\w./]+).*""".r
+      val ruleRegexShort = """^\s*([\w./]+)\s*(->>|--!)\s*([\w./]+).*""".r
+      
+      val lines = currentCode.linesIterator.zipWithIndex
+
+      lines.flatMap { case (line, lineNumber) =>
+        line match {
+          case ruleRegexFull(trigger, op, target, name) =>
+            val opType = if (op == "->>") "on" else "off"
+            val key: HyperEdgeIdentity = (opType, stringToQName(trigger), stringToQName(target), stringToQName(name))
+            Some(key -> lineNumber)
+          
+          case ruleRegexShort(trigger, op, name) => 
+            val opType = if (op == "->>") "on" else "off"
+            val key: HyperEdgeIdentity = (opType, stringToQName(trigger), stringToQName(name), stringToQName(name))
+            Some(key -> lineNumber)
+            
+          case _ => None
+        }
+      }.toMap
+    }
+    
     val hyperEdges = (
       rxGraph.on.flatMap { case (trigger, targets) => targets.map(t => ("on", trigger, t._1, t._2)) } ++
       rxGraph.off.flatMap { case (trigger, targets) => targets.map(t => ("off", trigger, t._1, t._2)) }
-    ).toList.distinct.sortBy(h => (labelToId.getOrElse(h._2, -1), h._3.toString, h._4.toString))
+    ).toList.distinct
+     .sortBy { h_identity =>
+        ruleToLineNumber.getOrElse(h_identity, Int.MaxValue)
+     }
+
+
     val hyperEdgeToIndex: Map[HyperEdgeIdentity, Int] = hyperEdges.zipWithIndex.toMap
 
-    // =======================================================================
-    // PASSO 2: Construir a seção <declaration> com base nos dados mapeados
-    // =======================================================================
+    val memo = mutable.Map[QName, Set[QName]]()
 
-    // Gera as linhas para o inicializador do array L.
-    // Esta é a lógica central que traduz as regras de reatividade.
+    def findAllRootTriggers(trigger: QName): Set[QName] = {
+      if (memo.contains(trigger)) return memo(trigger)
+      
+      if (labelToId.contains(trigger)) {
+        return Set(trigger)
+      }
+
+      val result = hyperEdges
+        .filter { case (_, _, _, ruleName) => ruleName == trigger }
+        .flatMap { case (_, parentTrigger, _, _) => findAllRootTriggers(parentTrigger) }
+        .toSet
+      
+      memo(trigger) = result
+      result
+    } 
+
+
+    
     val arrayLInitializerEntries = hyperEdges.flatMap { hEdge =>
       val (opType, triggerLbl, targetLbl, selfLbl) = hEdge
-      val triggerId = labelToId.getOrElse(triggerLbl, -1)
+      
+      val rootTriggers = findAllRootTriggers(triggerLbl)
+      
       val effectType = if (opType == "on") "1" else "0"
-      val hyperEdgeTuple = (triggerLbl, targetLbl, selfLbl)
-      val status = if (rxGraph.act.contains(hyperEdgeTuple)) "1" else "0"
 
-      // *** LÓGICA DE BUSCA DE ALVO CORRIGIDA E ROBUSTA ***
-      // 1. Procura por alvos que são arestas simples.
-      val simpleEdgeTargets = simpleEdges.filter(_._3 == targetLbl).map(e => (1, edgeToIndex(e)))
-
-      // 2. Se NENHUMA aresta simples foi encontrada, procura por alvos que são hiper-arestas (regras).
-      val hyperEdgeTargets = if (simpleEdgeTargets.isEmpty) {
-        hyperEdges.filter(_._4 == targetLbl).map(h => (0, hyperEdgeToIndex(h)))
+      val simpleEdgeTargets = simpleEdges
+        .filter(_._3 == targetLbl)
+        .map(e => (1, edgeToIndex(e))) 
+      
+      val hyperEdgeTargets = if (simpleEdgeTargets.nonEmpty) {
+        Nil 
       } else {
-        Nil // Prioriza arestas simples se o nome do alvo for ambíguo.
+        hyperEdges
+          .filter { case (_, _, _, ruleName) => ruleName == targetLbl }
+          .flatMap { h_identity =>
+            hyperEdgeToIndex.get(h_identity).map(index => (0, index)) 
+          }
       }
-      
+
+      val status = if (rxGraph.act.contains((triggerLbl, targetLbl, selfLbl))) "1" else "0"
+   
       val allTargets = simpleEdgeTargets ++ hyperEdgeTargets
-      
-      // Gera uma linha em L para cada alvo encontrado.
-      allTargets.map { case (isEdgeTarget, targetIndex) =>
-        s"    { $triggerId, $effectType, $status, $isEdgeTarget, $targetIndex } /* Rule '${selfLbl.show}' (Trigger: ${triggerLbl.show}) affecting target '${targetLbl.show}' */"
+
+      for {
+        root <- rootTriggers
+        rootId = labelToId.getOrElse(root, -1)
+        (isEdgeTarget, targetIndex) <- allTargets
+        if rootId != -1
+      } yield {
+        s"    { $rootId, $effectType, $status, $isEdgeTarget, $targetIndex } /* Rule '${selfLbl.show}' (Root Trigger: ${root.show}) affecting target '${targetLbl.show}' */"
       }
     }
     
-    val finalNumHyperedges = arrayLInitializerEntries.size
+    val finalNumHyperedges = arrayLInitializerEntries.distinct.size
     val declarationBuilder = new StringBuilder(
       s"""// -----------------------------------------------------------
          |// 1. Array Sizes and Constants
@@ -129,10 +185,10 @@ object UppaalConverter {
          |// Hyperedge Array (L) Initialization
          |""".stripMargin)
     
-    if (arrayLInitializerEntries.isEmpty) {
+    if (arrayLInitializerEntries.distinct.isEmpty) {
         declarationBuilder.append(s"Hyperedge L[NUM_HYPEREDGES];\n")
     } else {
-        declarationBuilder.append(s"Hyperedge L[NUM_HYPEREDGES] = {\n${arrayLInitializerEntries.mkString(",\n")}\n};\n")
+        declarationBuilder.append(s"Hyperedge L[NUM_HYPEREDGES] = {\n${arrayLInitializerEntries.distinct.mkString(",\n")}\n};\n")
     }
 
     declarationBuilder.append(
@@ -154,9 +210,7 @@ object UppaalConverter {
         |}
         |""".stripMargin)
 
-    // =======================================================================
-    // PASSO 3: Construir o XML final do template e do sistema
-    // =======================================================================
+
     var xCoord = -600
     val locationNodes = allStates.map { stateName =>
       val stateId = stateToId(stateName)
@@ -186,24 +240,17 @@ object UppaalConverter {
     }
 
     val initRef = rxGraph.inits.headOption.flatMap(stateToId.get)
-    val systemText =
-      """
-		// Place template instantiations here.
-		Process = Template();
-		// List one or more processes to be composed into a system.
-		system Process;"""
 
     val nta =
       <nta>
         <declaration>{declarationBuilder.toString()}</declaration>
         <template>
           <name x="5" y="5">Template</name>
-          <declaration>// Place local declarations here.</declaration>
           {locationNodes}
           {initRef.map(ref => <init ref={ref}/>).getOrElse(NodeSeq.Empty)}
           {transitionNodes}
         </template>
-        <system>{Unparsed(systemText)}</system>
+        <system>Process = Template();system Process;</system>
       </nta>
       
     val pp = new PrettyPrinter(200, 2)

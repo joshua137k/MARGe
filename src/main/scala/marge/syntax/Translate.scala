@@ -44,7 +44,6 @@ object MaRGeTranslator {
     val matchFull: Regex = """^([\w_]+)\s*(-->|->>|--!)\s*([\w_]+):\s*([\w_]+)(\s+disabled)?""".r
     val matchShort: Regex = """^([\w_]+)\s*(-->|->>|--!)\s*([\w_]+)(\s+disabled)?""".r
 
-    // --- PASSO 1: Identificar todos os ATORES REAIS e seus estados iniciais ---
     for (line <- allLines) {
       if (!line.startsWith("init")) {
         var actorName: Option[String] = None
@@ -73,7 +72,6 @@ object MaRGeTranslator {
       }
     }
 
-    // --- PASSO 2: Construir as estruturas de arestas e regras ---
     for (line <- allLines) {
       line match {
         case s if s.startsWith("init") =>
@@ -106,7 +104,6 @@ object MaRGeTranslator {
       }
     }
 
-    // --- PASSO 3: Gerar o script de saída ---
     val output = ListBuffer[String]()
     actors.keys.toList.sorted.foreach { actorName =>
       output.append(s"int ${actorName}_active = ${actors(actorName)}")
