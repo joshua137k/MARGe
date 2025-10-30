@@ -130,30 +130,40 @@ object CaosConfig2 extends Configurator[RxGraph]:
   "Conditions" ->
     """int counter = 0
       |init start
-      |start --> middle: step1  if (counter < 2) counter' := counter + 1
-      |middle --> endN: activateStep2 if counter == 1""".stripMargin
+      |start --> middle: step1  if (counter < 2) then {
+      |  counter' := counter + 1
+      |}
+      |middle --> endN: activateStep2 if (counter == 1)""".stripMargin
     -> "Basic example with counter updates and conditions",
   
-  "Teste Guard" ->
-   """//init s0
-      |//s0 --> s1: a
-      |//s1 --> s0: b disabled
-      |//a --! a: offA disabled
-      |//a ->> b: onB
-      |//b ->> offA: onOffA
-      |int a_active = 1
-      |int b_active = 0
-      |int offA_active = 0
-
+  "GRG" ->
+   """int a_active   = 1
+      |int b_active   = 0
+      |int c_active = 0
+      |
       |init s0
-
-      |s0 --> s1: a if (a_active == 1) then {
-      |    b_active' := 1;
-      |    if (offA_active == 1) then {
-      |        a_active' := 0
-      |    }
+      |
+      |s0 --> s1: aa  if (a_active == 1) then {
+      |  b_active' := 1;
+      |  if (c_active == 1) then {
+      |  	a_active' := 0
+      |  }
       |}
-      |s1 --> s0: b if (b_active == 1) offA_active' := 1""".stripMargin
+      |
+      |s1 --> s0: bb  if (b_active == 1) then {
+      |  c_active' := 1;
+      |  if (a_active == 0) then {
+      |  	b_active' := 0
+      |  }
+      |}
+      |
+      |s1 --> s2: cc  if (c_active == 1)
+      |
+      |
+      |aa --! aa: offA2 disabled
+      |aa ->> bb: onB if (b_active == 0)
+      |bb ->> offA2: onOffA if (c_active == 0)
+      |""".stripMargin
       -> "Basic example with counter updates and conditions",
 
   "Counter" ->
@@ -284,7 +294,8 @@ object CaosConfig2 extends Configurator[RxGraph]:
     "RG2GLTS" -> Custom("margeTranslatorContainer",
       (stx: RxGraph) => {
         val div = dom.document.getElementById("margeTranslatorContainer")
-        if (div != null && div.childElementCount == 0) {
+        if (div != null) {
+          div.innerHTML = ""
           val button = dom.document.createElement("button").asInstanceOf[html.Button]
           button.textContent = "Translate & Reload" 
           button.className = "btn btn-primary"
@@ -295,7 +306,7 @@ object CaosConfig2 extends Configurator[RxGraph]:
             if (editorElement != null && !js.isUndefined(editorElement.CodeMirror)) {
               val cm_instance = editorElement.CodeMirror.asInstanceOf[js.Dynamic]
               val currentCode = cm_instance.getValue().toString
-              val translatedCode = MaRGeTranslator.translate_syntax(currentCode)
+              val translatedCode = MaRGeTranslator.translate_syntax(stx,currentCode)
               cm_instance.setValue(translatedCode)
 
               
@@ -330,14 +341,14 @@ object CaosConfig2 extends Configurator[RxGraph]:
 
 
           val buttonStable = dom.document.createElement("button").asInstanceOf[html.Button]
-          buttonStable.textContent = "Download XML (Stable)"
+          buttonStable.textContent = "Download XML (GLTS TO UPPAAL)"
           buttonStable.className = "btn btn-secondary"
           buttonStable.style.marginRight = "5px" 
 
           buttonStable.onclick = (e: dom.MouseEvent) => {
             try {
-              val uppaalXml = UppaalConverter2.convert(currentCode)
-              downloadFile("model_stable.xml", uppaalXml)
+              val uppaalXml = UppaalConverter2.convert(stx,currentCode)
+              downloadFile("model_glts.xml", uppaalXml)
             } catch {
               case t: Throwable =>
                 dom.window.alert(s"Error during stable Uppaal conversion:\n${t.getMessage}")
@@ -348,14 +359,14 @@ object CaosConfig2 extends Configurator[RxGraph]:
 
 
           val buttonNew = dom.document.createElement("button").asInstanceOf[html.Button]
-          buttonNew.textContent = "Download XML"
+          buttonNew.textContent = "Download XML (RG TO UPPAAL)"
           buttonNew.className = "btn btn-info"
 
           buttonNew.onclick = (e: dom.MouseEvent) => {
             try {
               
                 val uppaalXml = UppaalConverter.convert(stx, currentCode)
-                downloadFile("model.xml", uppaalXml)
+                downloadFile("model_rg.xml", uppaalXml)
 
             } catch {
               case t: Throwable =>
