@@ -10226,8 +10226,16 @@ function $p_Lmarge_backend_CytoscapeConverter$__formatStatements__sci_List__T__T
   var this$13 = $n($$x1);
   return $f_sc_IterableOnceOps__mkString__T__T__T__T(this$13, "", "\n", "")
 }
-function $p_Lmarge_backend_CytoscapeConverter$__formatCyEdge__T__T__T__T__T__T($thiz, id, source, target, label, classes) {
-  return (((((((((("{ \"data\": { \"id\": \"" + id) + "\", \"source\": \"") + source) + "\", \"target\": \"") + target) + "\", \"label\": \"") + label) + "\" }, \"classes\": \"") + classes) + "\" }")
+function $p_Lmarge_backend_CytoscapeConverter$__escapeJson__T__T($thiz, text) {
+  var this$1 = $n(text);
+  var this$2 = $n($as_T(this$1.split("\\").join("\\\\")));
+  var this$3 = $n($as_T(this$2.split("\"").join("\\\"")));
+  var this$4 = $n($as_T(this$3.split("\n").join("\\n")));
+  var this$5 = $n($as_T(this$4.split("\r").join("\\r")));
+  return $as_T(this$5.split("\t").join("\\t"))
+}
+function $p_Lmarge_backend_CytoscapeConverter$__formatCyEdge__T__T__T__T__T__T__T($thiz, id, source, target, label, classes, extraData) {
+  return (((((((((((("{ \"data\": { \"id\": \"" + id) + "\", \"source\": \"") + source) + "\", \"target\": \"") + target) + "\", \"label\": \"") + $p_Lmarge_backend_CytoscapeConverter$__escapeJson__T__T($thiz, label)) + "\"") + extraData) + " }, \"classes\": \"") + classes) + "\" }")
 }
 /** @constructor */
 function $c_Lmarge_backend_CytoscapeConverter$() {
@@ -10490,22 +10498,40 @@ $c_Lmarge_backend_CytoscapeConverter$.prototype.apply__Lmarge_syntax_Program2$Rx
       var $$x4 = new $c_s_Some((("[" + $f_Lmarge_syntax_Condition__toMermaidString__T(this$54)) + "]"))
     };
     var this$55 = $n($$x4);
-    var conditionLabel = $as_T((this$55.isEmpty__Z() ? "" : this$55.get__O()));
+    var fullConditionLabel = $as_T((this$55.isEmpty__Z() ? "" : this$55.get__O()));
+    var conditionDisplayLabel = fullConditionLabel;
+    var conditionExtraData = "";
+    var conditionClasses = "";
+    var this$56 = $n(fullConditionLabel);
+    if ((this$56.length > 30)) {
+      conditionDisplayLabel = "[...]";
+      conditionExtraData = ((", \"full_label\": \"" + $p_Lmarge_backend_CytoscapeConverter$__escapeJson__T__T(this, fullConditionLabel)) + "\", \"short_label\": \"[...]\" ");
+      conditionClasses = " has-details"
+    };
     var updates = $as_sci_List($n($n(rx).Lmarge_syntax_Program2$RxGraph__f_edgeUpdates).getOrElse__O__F0__O(edge$3, new $c_sjsr_AnonFunction0((() => $m_s_package$().s_package$__f_Nil))));
-    var this$56 = $n($p_Lmarge_backend_CytoscapeConverter$__formatStatements__sci_List__T__T(this, updates, ""));
-    var updateLabel = $as_T(this$56.split("\n").join(" "));
+    var this$57 = $n($p_Lmarge_backend_CytoscapeConverter$__formatStatements__sci_List__T__T(this, updates, ""));
+    var fullUpdateLabel = $as_T(this$57.split("\n").join(" "));
+    var updateDisplayLabel = fullUpdateLabel;
+    var updateExtraData = "";
+    var updateClasses = "";
+    var this$58 = $n(fullUpdateLabel);
+    if ((this$58.length > 30)) {
+      updateDisplayLabel = "{...}";
+      updateExtraData = ((", \"full_label\": \"" + $p_Lmarge_backend_CytoscapeConverter$__escapeJson__T__T(this, fullUpdateLabel)) + "\", \"short_label\": \"{...}\" ");
+      updateClasses = " has-details"
+    };
     $n($m_s_package$().s_package$__f_List);
     var $$x6 = $m_sr_ScalaRunTime$();
-    var this$57 = $n(from$2$1);
-    var this$58 = $n(this$57.Lmarge_syntax_Program2$QName__f_n);
-    var $$x5 = $p_Lmarge_backend_CytoscapeConverter$__formatCyEdge__T__T__T__T__T__T(this, ((("s_to_a_" + from$2$1) + "_") + actionNodeId), $f_sc_IterableOnceOps__mkString__T__T__T__T(this$58, "", "/", ""), actionNodeId, conditionLabel, ("simple-conn" + disabledClass));
-    var this$59 = $n(to$2$1);
+    var this$59 = $n(from$2$1);
     var this$60 = $n(this$59.Lmarge_syntax_Program2$QName__f_n);
-    var elems$2 = $n($$x6).wrapRefArray__AO__sci_ArraySeq(new ($d_T.getArrayOf().constr)([$$x5, $p_Lmarge_backend_CytoscapeConverter$__formatCyEdge__T__T__T__T__T__T(this, ((("a_to_s_" + actionNodeId) + "_") + to$2$1), actionNodeId, $f_sc_IterableOnceOps__mkString__T__T__T__T(this$60, "", "/", ""), updateLabel, ("simple-conn from-action-node" + disabledClass))]));
+    var $$x5 = $p_Lmarge_backend_CytoscapeConverter$__formatCyEdge__T__T__T__T__T__T__T(this, ((("s_to_a_" + from$2$1) + "_") + actionNodeId), $f_sc_IterableOnceOps__mkString__T__T__T__T(this$60, "", "/", ""), actionNodeId, conditionDisplayLabel, (("simple-conn" + disabledClass) + conditionClasses), conditionExtraData);
+    var this$61 = $n(to$2$1);
+    var this$62 = $n(this$61.Lmarge_syntax_Program2$QName__f_n);
+    var elems$2 = $n($$x6).wrapRefArray__AO__sci_ArraySeq(new ($d_T.getArrayOf().constr)([$$x5, $p_Lmarge_backend_CytoscapeConverter$__formatCyEdge__T__T__T__T__T__T__T(this, ((("a_to_s_" + actionNodeId) + "_") + to$2$1), actionNodeId, $f_sc_IterableOnceOps__mkString__T__T__T__T(this$62, "", "/", ""), updateDisplayLabel, (("simple-conn from-action-node" + disabledClass) + updateClasses), updateExtraData)]));
     return $m_sci_Nil$().prependedAll__sc_IterableOnce__sci_List(elems$2)
   }))));
-  var this$62 = $n(allOnEdges);
-  var $$x7 = $as_sc_IterableOps($n(this$62.concat__sc_IterableOnce__sc_SetOps(allOffEdges)).flatMap__F1__O(new $c_sjsr_AnonFunction1(((ruleEdge) => {
+  var this$64 = $n(allOnEdges);
+  var $$x7 = $as_sc_IterableOps($n(this$64.concat__sc_IterableOnce__sc_SetOps(allOffEdges)).flatMap__F1__O(new $c_sjsr_AnonFunction1(((ruleEdge) => {
     var ruleEdge$1 = $as_T3(ruleEdge);
     matchResult7: {
       var \u03b43$___1;
@@ -10546,37 +10572,37 @@ $c_Lmarge_backend_CytoscapeConverter$.prototype.apply__Lmarge_syntax_Program2$Rx
         var fromNodeId = ((((("event_" + $n(fromNode$1).T3__f__1) + "_") + $n(fromNode$1).T3__f__2) + "_") + $n(fromNode$1).T3__f__3);
         var toNodeId = ((((("event_" + $n(toNode$1).T3__f__1) + "_") + $n(toNode$1).T3__f__2) + "_") + $n(toNode$1).T3__f__3);
         $n($m_s_package$().s_package$__f_List);
-        var elems$3 = $m_sr_ScalaRunTime$().wrapRefArray__AO__sci_ArraySeq(new ($d_T.getArrayOf().constr)([$p_Lmarge_backend_CytoscapeConverter$__formatCyEdge__T__T__T__T__T__T(this, ((("rule_from_" + fromNodeId) + "_") + ruleNodeId), fromNodeId, ruleNodeId, "", (("rule-edge " + ruleClass) + disabledClass$1)), $p_Lmarge_backend_CytoscapeConverter$__formatCyEdge__T__T__T__T__T__T(this, ((("rule_to_" + ruleNodeId) + "_") + toNodeId), ruleNodeId, toNodeId, "", (("rule-edge from-rule-node to-target " + ruleClass) + disabledClass$1))]));
+        var elems$3 = $m_sr_ScalaRunTime$().wrapRefArray__AO__sci_ArraySeq(new ($d_T.getArrayOf().constr)([$p_Lmarge_backend_CytoscapeConverter$__formatCyEdge__T__T__T__T__T__T__T(this, ((("rule_from_" + fromNodeId) + "_") + ruleNodeId), fromNodeId, ruleNodeId, "", (("rule-edge " + ruleClass) + disabledClass$1), ""), $p_Lmarge_backend_CytoscapeConverter$__formatCyEdge__T__T__T__T__T__T__T(this, ((("rule_to_" + ruleNodeId) + "_") + toNodeId), ruleNodeId, toNodeId, "", (("rule-edge from-rule-node to-target " + ruleClass) + disabledClass$1), "")]));
         return $m_sci_Nil$().prependedAll__sc_IterableOnce__sci_List(elems$3)
       }))))
     }))))
   }))));
-  var this$66 = $m_s_$less$colon$less$();
-  var hyperConnections = $as_sci_Set($n($$x7).flatten__F1__O(this$66.s_$less$colon$less$__f_singleton));
-  var this$67 = $n(parentNodes);
-  var this$68 = $n(this$67.concat__sc_IterableOnce__sc_SetOps(stateNodes));
-  var this$72 = $n($as_sc_IterableOnceOps($n(this$68.concat__sc_IterableOnce__sc_SetOps(eventNodes)).filter__F1__O(new $c_sjsr_AnonFunction1(((_$8) => {
+  var this$68 = $m_s_$less$colon$less$();
+  var hyperConnections = $as_sci_Set($n($$x7).flatten__F1__O(this$68.s_$less$colon$less$__f_singleton));
+  var this$69 = $n(parentNodes);
+  var this$70 = $n(this$69.concat__sc_IterableOnce__sc_SetOps(stateNodes));
+  var this$74 = $n($as_sc_IterableOnceOps($n(this$70.concat__sc_IterableOnce__sc_SetOps(eventNodes)).filter__F1__O(new $c_sjsr_AnonFunction1(((_$8) => {
     var _$8$1 = $as_T(_$8);
     $m_sc_StringOps$();
-    var this$71 = $n(_$8$1);
-    return (!(this$71 === ""))
+    var this$73 = $n(_$8$1);
+    return (!(this$73 === ""))
   })))));
-  var allNodes = $f_sc_IterableOnceOps__mkString__T__T__T__T(this$72, "", ",\n", "");
-  var this$73 = $n(simpleConnections);
-  var this$77 = $n($as_sc_IterableOnceOps($n(this$73.concat__sc_IterableOnce__sc_SetOps(hyperConnections)).filter__F1__O(new $c_sjsr_AnonFunction1(((_$9) => {
+  var allNodes = $f_sc_IterableOnceOps__mkString__T__T__T__T(this$74, "", ",\n", "");
+  var this$75 = $n(simpleConnections);
+  var this$79 = $n($as_sc_IterableOnceOps($n(this$75.concat__sc_IterableOnce__sc_SetOps(hyperConnections)).filter__F1__O(new $c_sjsr_AnonFunction1(((_$9) => {
     var _$9$1 = $as_T(_$9);
     $m_sc_StringOps$();
-    var this$76 = $n(_$9$1);
-    return (!(this$76 === ""))
+    var this$78 = $n(_$9$1);
+    return (!(this$78 === ""))
   })))));
-  var allConnections = $f_sc_IterableOnceOps__mkString__T__T__T__T(this$77, "", ",\n", "");
-  var this$81 = $n($as_sc_IterableOnceOps($n($n($m_s_package$().s_package$__f_Seq).apply__sci_Seq__sc_SeqOps($m_sr_ScalaRunTime$().wrapRefArray__AO__sci_ArraySeq(new ($d_T.getArrayOf().constr)([allNodes, allConnections])))).filter__F1__O(new $c_sjsr_AnonFunction1(((_$10) => {
+  var allConnections = $f_sc_IterableOnceOps__mkString__T__T__T__T(this$79, "", ",\n", "");
+  var this$83 = $n($as_sc_IterableOnceOps($n($n($m_s_package$().s_package$__f_Seq).apply__sci_Seq__sc_SeqOps($m_sr_ScalaRunTime$().wrapRefArray__AO__sci_ArraySeq(new ($d_T.getArrayOf().constr)([allNodes, allConnections])))).filter__F1__O(new $c_sjsr_AnonFunction1(((_$10) => {
     var _$10$1 = $as_T(_$10);
     $m_sc_StringOps$();
-    var this$80 = $n(_$10$1);
-    return (!(this$80 === ""))
+    var this$82 = $n(_$10$1);
+    return (!(this$82 === ""))
   })))));
-  return (("[ " + $f_sc_IterableOnceOps__mkString__T__T__T__T(this$81, "", ",\n", "")) + " ]")
+  return (("[ " + $f_sc_IterableOnceOps__mkString__T__T__T__T(this$83, "", ",\n", "")) + " ]")
 });
 var $d_Lmarge_backend_CytoscapeConverter$ = new $TypeData().initClass({
   Lmarge_backend_CytoscapeConverter$: 0

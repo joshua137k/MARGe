@@ -12,12 +12,18 @@ object CytoscapeConverter {
         s"${indent}${upd.variable.show}' := ${UpdateExpr.show(upd.expr)}"
       case IfThenStmt(condition, thenStmts) =>
         val conditionLine = s"${indent}if (${condition.toMermaidString}) then {"
-        // Chamada recursiva para o bloco 'then' com maior indentação
         val thenBlock = formatStatements(thenStmts, indent + "  ")
         val closingBrace = s"${indent}}"
-        // Junta as partes, garantindo que blocos vazios ainda sejam exibidos corretamente
         Seq(conditionLine, thenBlock, closingBrace).filter(_.nonEmpty).mkString("\n")
     }.mkString("\n")
+  }
+
+  private def escapeJson(text: String): String = {
+    text.replace("\\", "\\\\")
+        .replace("\"", "\\\"")
+        .replace("\n", "\\n")
+        .replace("\r", "\\r")
+        .replace("\t", "\\t")
   }
 
   def apply(rx: RxGraph): String = {
@@ -65,16 +71,36 @@ object CytoscapeConverter {
       val isDisabled = !rx.act.contains(edge)
       val disabledClass = if (isDisabled) " disabled" else ""
       
-      val conditionLabel = rx.edgeConditions.getOrElse(edge, None)
+      val labelThreshold = 30 
+      val fullConditionLabel = rx.edgeConditions.getOrElse(edge, None)
         .map(cond => s"[${cond.toMermaidString}]")
         .getOrElse("")
+      
+      var conditionDisplayLabel = fullConditionLabel
+      var conditionExtraData = ""
+      var conditionClasses = ""
+
+      if (fullConditionLabel.length > labelThreshold) {
+        conditionDisplayLabel = "[...]"
+        conditionExtraData = s""", "full_label": "${escapeJson(fullConditionLabel)}", "short_label": "[...]" """
+        conditionClasses = " has-details"
+      }
 
       val updates = rx.edgeUpdates.getOrElse(edge, Nil)
-      val updateLabel = formatStatements(updates).replace("\n", " ")
+      val fullUpdateLabel = formatStatements(updates).replace("\n", " ") // A lógica para atualizações pode ser similar
+      var updateDisplayLabel = fullUpdateLabel
+      var updateExtraData = ""
+      var updateClasses = ""
+
+      if (fullUpdateLabel.length > labelThreshold) {
+        updateDisplayLabel = "{...}"
+        updateExtraData = s""", "full_label": "${escapeJson(fullUpdateLabel)}", "short_label": "{...}" """
+        updateClasses = " has-details"
+      }
 
       List(
-        formatCyEdge(s"s_to_a_${from}_${actionNodeId}", from.toString, actionNodeId, conditionLabel, s"simple-conn$disabledClass"),
-        formatCyEdge(s"a_to_s_${actionNodeId}_${to}", actionNodeId, to.toString, updateLabel, s"simple-conn from-action-node$disabledClass")
+        formatCyEdge(s"s_to_a_${from}_${actionNodeId}", from.toString, actionNodeId, conditionDisplayLabel, s"simple-conn$disabledClass$conditionClasses", conditionExtraData),
+        formatCyEdge(s"a_to_s_${actionNodeId}_${to}", actionNodeId, to.toString, updateDisplayLabel, s"simple-conn from-action-node$disabledClass$updateClasses", updateExtraData)
       )
     }
 
@@ -111,6 +137,6 @@ object CytoscapeConverter {
   private def isConditionSatisfied(edge: Edge, rx: RxGraph): Boolean =
     rx.edgeConditions.getOrElse(edge, None).forall(cond => Condition.evaluate(cond, rx.val_env))
 
-  private def formatCyEdge(id: String, source: String, target: String, label: String, classes: String): String =
-    s"""{ "data": { "id": "$id", "source": "$source", "target": "$target", "label": "$label" }, "classes": "$classes" }"""
+  private def formatCyEdge(id: String, source: String, target: String, label: String, classes: String, extraData: String = ""): String =
+    s"""{ "data": { "id": "$id", "source": "$source", "target": "$target", "label": "${escapeJson(label)}"$extraData }, "classes": "$classes" }"""
 }

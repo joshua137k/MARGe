@@ -283,6 +283,26 @@ function setupInitialCytoscape(mainContainerId, combinedJsonData) {
         cy.on('mouseover', 'node.event-node.enabled', function(e) { e.cy.container().style.cursor = 'pointer'; });
         cy.on('mouseout', 'node.event-node.enabled', function(e) { e.cy.container().style.cursor = 'default'; });
 
+        cy.on('tap', 'edge.has-details', function(evt){
+            var edge = evt.target;
+            
+            if (edge.data('is_expanded')) {
+                edge.data('label', edge.data('short_label'));
+                edge.data('is_expanded', false);
+            } else {
+                edge.data('label', edge.data('full_label'));
+                edge.data('is_expanded', true);
+            }
+        });
+
+        cy.on('mouseover', 'edge.has-details', function(e) {
+            e.cy.container().style.cursor = 'pointer';
+        });
+        cy.on('mouseout', 'edge.has-details', function(e) {
+            e.cy.container().style.cursor = 'default';
+        });
+
+
         currentCytoscapeInstance = cy;
         changeEdgeStyle('straight'); 
 
