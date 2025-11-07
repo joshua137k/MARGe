@@ -12,10 +12,12 @@ object Program2:
   def add[A,B](ab:(A,B), r:Rel[A,B]) = r + (ab._1 -> (r(ab._1)+(ab._2)))
   def join[A,B](r1:Rel[A,B], r2:Rel[A,B]) = r1 ++ (r2.map(ab => ab._1 -> (r1(ab._1)++(ab._2))))
 
+  private def isGlobalControlVar(q: QName): Boolean = q.n.mkString.contains("_")
+
   case class QName(n:List[String]):
     override def toString = n.mkString("/")
     def show = if n.isEmpty then "-" else toString
-    def /(other:QName) = if other.n.isEmpty then this else if n.isEmpty then other else QName(n:::other.n) 
+    def /(other:QName) = if (other.n.isEmpty) other else if (n.isEmpty) other else QName(n ::: other.n)
     //def /(other:QName) = if other.n.isEmpty then other else QName(n:::other.n)
     def /(other:String) = QName(n:::List(other))
     def /(e:EdgeMap):EdgeMap =
@@ -41,38 +43,48 @@ object Program2:
         act = this / rx.act,
         val_env = rx.val_env.map { case (k, v) => (this / k) -> v },
         edgeConditions = rx.edgeConditions.map { case (edge, condOpt) =>
-          (this / edge._1, this / edge._2, this / edge._3) -> condOpt.map { c =>
-            c match { 
-              case Condition.AtomicCond(left, op, right) =>
-                Condition.AtomicCond(
-                  left = this / left,
-                  op = op,
-                  right = right match {
-                    case Left(i) => Left(i)
-                    case Right(q) => Right(this / q)
-                  }
-                )
-              case other => other 
-            }
-          }
+          (this / edge._1, this / edge._2, this / edge._3) -> condOpt.map(c => applyPrefixToCondition(this, c))
         },
         edgeUpdates = rx.edgeUpdates.map { case (edge, stmtList) =>
           (this / edge._1, this / edge._2, this / edge._3) -> stmtList.map(stmt => applyPrefixToStatement(this, stmt))
         }
       )
   
+  def applyPrefixToCondition(prefix: QName, cond: Condition): Condition = {
+    cond match {
+      case Condition.AtomicCond(left, op, right) =>
+        val newLeft = if (isGlobalControlVar(left)) left else prefix / left
+        val newRight = right match {
+          case Left(i) => Left(i)
+          case Right(q) => if (isGlobalControlVar(q)) Right(q) else Right(prefix / q)
+        }
+        Condition.AtomicCond(newLeft, op, newRight)
+      case Condition.And(l, r) => Condition.And(applyPrefixToCondition(prefix, l), applyPrefixToCondition(prefix, r))
+      case Condition.Or(l, r) => Condition.Or(applyPrefixToCondition(prefix, l), applyPrefixToCondition(prefix, r))
+    }
+  }
   def applyPrefixToStatement(prefix: QName, stmt: Statement): Statement = {
     stmt match {
-      case UpdateStmt(upd) => UpdateStmt(upd.copy(variable = prefix / upd.variable)) 
-      case IfThenStmt(cond, thenStmts) =>
-        val newCond = cond match { 
-          case Condition.AtomicCond(l, op, r) => Condition.AtomicCond(prefix / l, op, r match {
-            case Left(i) => Left(i)
-            case Right(q) => Right(prefix / q)
-          })
-          case _ => cond 
+      case UpdateStmt(upd) =>
+        val newVar = if (isGlobalControlVar(upd.variable)) upd.variable else prefix / upd.variable
+        val newExpr = upd.expr match {
+            case UpdateExpr.Add(v, e) => UpdateExpr.Add(if(isGlobalControlVar(v)) v else prefix/v, e match {
+                case Right(q) if !isGlobalControlVar(q) => Right(prefix/q)
+                case other => other
+            })
+            case UpdateExpr.Sub(v, e) => UpdateExpr.Sub(if(isGlobalControlVar(v)) v else prefix/v, e match {
+                case Right(q) if !isGlobalControlVar(q) => Right(prefix/q)
+                case other => other
+            })
+            case UpdateExpr.Var(q) if !isGlobalControlVar(q) => UpdateExpr.Var(prefix/q)
+            case other => other
         }
-        IfThenStmt(newCond, thenStmts.map(s => applyPrefixToStatement(prefix, s)))
+        UpdateStmt(upd.copy(variable = newVar, expr = newExpr))
+      case IfThenStmt(cond, thenStmts) =>
+        IfThenStmt(
+          applyPrefixToCondition(prefix, cond),
+          thenStmts.map(s => applyPrefixToStatement(prefix, s))
+        )
     }
   }
 

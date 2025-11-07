@@ -1,5 +1,3 @@
-// Em marge/backend/UppaalConverter2.scala
-
 package marge.backend
 
 import marge.syntax.Program2.{Edge, QName, RxGraph}
@@ -81,19 +79,36 @@ object UppaalConverter2 {
     }
 
     
-    var xCoord = 0
+    val HORIZONTAL_SPACING = 400
+    val VERTICAL_SPACING = 350
+    val numStates = allStates.size
+    val columns = if (numStates > 0) Math.ceil(Math.sqrt(numStates)).toInt else 1
+
+    val locationData = allStates.zipWithIndex.map { case (stateName, index) =>
+      val row = index / columns
+      val col = index % columns
+      val x = col * HORIZONTAL_SPACING
+      val y = row * VERTICAL_SPACING
+      stateName -> (x, y)
+    }.toMap
+
     val locationNodes = allStates.map { stateName =>
       val stateId = stateToId(stateName)
-      val node =
-        <location id={stateId} x={xCoord.toString} y="0">
-          <name x={(xCoord - 15).toString} y="-25">{stateName.show}</name>
-        </location>
-      xCoord += 250
-      node
+      val (x, y) = locationData(stateName)
+
+      <location id={stateId} x={x.toString} y={y.toString}>
+        <name x={(x - 20).toString} y={(y - 30).toString}>{stateName.show}</name>
+      </location>
     }
 
     val transitionNodes = transitionData.map {
       case (source, target, label, guardOpt, assignment) =>
+        val (sourceX, sourceY) = locationData(source)
+        val (targetX, targetY) = locationData(target)
+
+        val nailX = if (source == target) sourceX + 60 else (sourceX + targetX) / 2 + (targetY - sourceY) / 8
+        val nailY = if (source == target) sourceY - 60 else (sourceY + targetY) / 2 + (sourceX - targetX) / 8
+
         <transition>
           <source ref={stateToId(source)}/>
           <target ref={stateToId(target)}/>
@@ -112,6 +127,7 @@ object UppaalConverter2 {
               NodeSeq.Empty
             }
           }
+          <nail x={nailX.toString} y={nailY.toString}/>
         </transition>
     }
 

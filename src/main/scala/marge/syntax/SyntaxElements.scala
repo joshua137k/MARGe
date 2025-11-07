@@ -18,13 +18,23 @@ object Condition {
   case class AtomicCond(left: QName, op: String, right: Either[Int, QName]) extends Condition
   case class And(left: Condition, right: Condition) extends Condition
   case class Or(left: Condition, right: Condition) extends Condition
-
+  
+  private def getValue(qname: QName, env: Map[QName, Int]): Int = {
+    env.get(qname).getOrElse {
+      if (qname.n.size > 1) {
+        val globalName = QName(List(qname.n.last))
+        env.getOrElse(globalName, 0)
+      } else {
+        0
+      }
+    }
+  }
   def evaluate(condition: Condition, env: Map[QName, Int]): Boolean = condition match {
     case AtomicCond(left, op, right) =>
-      val leftVal = env.getOrElse(left, 0)
+      val leftVal = getValue(left, env)
       val rightVal = right match {
         case Left(i) => i
-        case Right(qname) => env.getOrElse(qname, 0)
+        case Right(qname) => getValue(qname, env)
       }
       op match {
         case ">=" => leftVal >= rightVal
@@ -55,6 +65,16 @@ object UpdateExpr {
     case Sub(v, Left(i)) => s"${v.show} - $i"
     case Sub(v, Right(q)) => s"${v.show} - ${q.show}"
   }
+
+  def show(expr: UpdateExpr, s: QName => String): String = expr match {
+    case Lit(i) => i.toString
+    case Var(q) => s(q)
+    case Add(v, Left(i)) => s"${s(v)} + $i"
+    case Add(v, Right(q)) => s"${s(v)} + ${s(q)}"
+    case Sub(v, Left(i)) => s"${s(v)} - $i"
+    case Sub(v, Right(q)) => s"${s(v)} - ${s(q)}"
+  }
+
 }
 
 case class CounterUpdate(variable: QName, expr: UpdateExpr) {

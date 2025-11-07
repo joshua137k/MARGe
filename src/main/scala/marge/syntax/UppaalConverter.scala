@@ -211,15 +211,26 @@ object UppaalConverter {
         |""".stripMargin)
 
 
-    var xCoord = -600
+    val HORIZONTAL_SPACING = 400
+    val VERTICAL_SPACING = 350
+    val numStates = allStates.size
+    val columns = if (numStates > 0) Math.ceil(Math.sqrt(numStates)).toInt else 1
+
+    val locationData = allStates.zipWithIndex.map { case (stateName, index) =>
+      val row = index / columns
+      val col = index % columns
+      val x = col * HORIZONTAL_SPACING
+      val y = row * VERTICAL_SPACING
+      stateName -> (x, y)
+    }.toMap
+
     val locationNodes = allStates.map { stateName =>
       val stateId = stateToId(stateName)
-      val locNode = 
-        <location id={stateId} x={xCoord.toString} y="-150">
-            <name x={(xCoord - 20).toString} y="-180">{stateName.show}</name>
-        </location>
-      xCoord += 250
-      locNode
+      val (x, y) = locationData(stateName)
+
+      <location id={stateId} x={x.toString} y={y.toString}>
+        <name x={(x - 20).toString} y={(y - 30).toString}>{stateName.show}</name>
+      </location>
     }
     
     val transitionNodes = simpleEdges.map { edge =>
@@ -231,11 +242,18 @@ object UppaalConverter {
         val fullGuard = extraCondOpt.map(c => s"$baseGuard && $c").getOrElse(baseGuard)
         val assignment = s"update_hyperedges_by_id($actionId), x=0"
         
+        val (sourceX, sourceY) = locationData(source)
+        val (targetX, targetY) = locationData(target)
+
+        val nailX = if (source == target) sourceX + 60 else (sourceX + targetX) / 2 + (targetY - sourceY) / 8
+        val nailY = if (source == target) sourceY - 60 else (sourceY + targetY) / 2 + (sourceX - targetX) / 8
+        
         <transition>
           <source ref={stateToId(source)}/>
           <target ref={stateToId(target)}/>
           <label kind="guard">{fullGuard}</label>
           <label kind="assignment">{assignment}</label>
+          <nail x={nailX.toString} y={nailY.toString}/>
         </transition>
     }
 
