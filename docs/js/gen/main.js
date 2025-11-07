@@ -14225,7 +14225,6 @@ function $p_Lmarge_syntax_MaRGeTranslator$__generateTransitionCode__T3__Lmarge_s
   var allEffects = $p_Lmarge_syntax_MaRGeTranslator$__findAllTriggeredEffects__Lmarge_syntax_Program2$QName__Lmarge_syntax_Program2$RxGraph__sci_List($thiz, label$2, stx);
   var this$9 = $n(allEffects);
   if ((!this$9.isEmpty__Z())) {
-    bodyBuilder.append__T__scm_StringBuilder("      // Cascading effects from triggered hyper-edges\n");
     var this$10 = $n(allEffects);
     var these = this$10;
     while ((!$n(these).isEmpty__Z())) {
