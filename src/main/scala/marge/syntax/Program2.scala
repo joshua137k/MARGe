@@ -4,6 +4,7 @@ import marge.backend.RxSemantics
 import marge.syntax.Program2.EdgeMap
 import marge.syntax.{Condition, CounterUpdate, UpdateExpr, Statement, UpdateStmt, IfThenStmt}
 import scala.annotation.tailrec
+import scala.language.implicitConversions
 import scala.scalajs.js.Dynamic.global
 object Program2:
 
@@ -117,19 +118,42 @@ object Program2:
                      inits: Set[QName],
                      act: Edges,
                      val_env: Map[QName, Int], 
+                     clocks: Set[QName], 
+                     clock_env: Map[QName, Int],
+                     invariants: Map[QName, Condition],
                      edgeConditions: Map[Edge, Option[Condition]], 
                      edgeUpdates: Map[Edge, List[Statement]] 
                     ):
 
     def showSimple: String =
-      s"[at] ${inits.mkString(",")}${if val_env.nonEmpty then s" [vars] ${val_env.map(kv => s"${kv._1}=${kv._2}").mkString(", ")}" else ""} [active] ${showEdges(act)}" +
-        s"${if edgeUpdates.values.exists(_.nonEmpty) then s" [upd] ${edgeUpdates.filter(_._2.nonEmpty).map(kv => s"${showEdge(kv._1)} -> ${kv._2.map(_.toString).mkString("; ")}").mkString(", ")}" else ""}"
+      s"[at] ${inits.mkString(",")}" +
+      s"${if invariants.nonEmpty then s" [inv] ${invariants.map(kv => s"${kv._1.show}:(${kv._2.toMermaidString})").mkString(", ")}" else ""}" +
+      s"${if clock_env.nonEmpty then s" [clocks] ${clock_env.map(kv => s"${kv._1}=${kv._2}").mkString(", ")}" else ""}" +
+      s"${if val_env.nonEmpty then s" [vars] ${val_env.map(kv => s"${kv._1}=${kv._2}").mkString(", ")}" else ""}" +
+      s" [active] ${showEdges(act)}"
+
+    def addClock(name: QName) =
+      this.copy(
+        clocks = clocks + name,
+        clock_env = clock_env + (name -> 0) // Clocks começam em 0
+      )
+    
+    def addInvariant(state: QName, cond: Condition) =
+      this.copy(invariants = invariants + (state -> cond))
 
     override def toString: String =
-      s"[init]  ${inits.mkString(",")}\n[vars]  ${val_env.map(kv => s"${kv._1}=${kv._2}").mkString(", ")}\n[act]   ${showEdges(act)}\n[edges] ${
-        showEdges(edg)}\n[on]    ${showEdges(on)}\n[off]   ${showEdges(off)}\n[conds] ${
-        edgeConditions.filter(_._2.isDefined).map(kv => s"${showEdge(kv._1)} -> ${kv._2.get}").mkString(", ")}\n[upd]   ${
-        edgeUpdates.filter(_._2.nonEmpty).map(kv => s"${showEdge(kv._1)} -> ${kv._2.map(_.toString).mkString("; ")}").mkString(", ")}" // UPDATED
+      s"""[init]  ${inits.mkString(",")}
+         |[inv]   ${invariants.map(kv => s"${kv._1.show}:(${kv._2.toMermaidString})").mkString(", ")}
+         |[clocks] ${clock_env.map(kv => s"${kv._1}=${kv._2}").mkString(", ")}
+         |[vars]  ${val_env.map(kv => s"${kv._1}=${kv._2}").mkString(", ")}
+         |[act]   ${showEdges(act)}
+         |[edges] ${showEdges(edg)}
+         |[on]    ${showEdges(on)}
+         |[off]   ${showEdges(off)}
+         |[conds] ${edgeConditions.filter(_._2.isDefined).map(kv => s"${showEdge(kv._1)} -> ${kv._2.get.toMermaidString}").mkString(", ")}
+         |[upd]   ${edgeUpdates.filter(_._2.nonEmpty).map(kv => s"${showEdge(kv._1)} -> ${kv._2.map(_.toString).mkString("; ")}").mkString(", ")}"""
+    
+    
 
     def states =
       for (src,dests)<-edg.toSet; (d,_)<-dests; st <- Set(src,d) yield st
@@ -167,6 +191,9 @@ object Program2:
         join(edg,r.edg),join(on,r.on),join(off,r.off),
         join(lbls,r.lbls),inits++r.inits,act++r.act,
         val_env ++ r.val_env, 
+        clocks ++ r.clocks,
+        clock_env ++ r.clock_env,
+        invariants ++ r.invariants,
         edgeConditions ++ r.edgeConditions, 
         edgeUpdates ++ r.edgeUpdates 
       )
@@ -176,7 +203,7 @@ object Program2:
     def apply(): RxGraph = RxGraph(
       Map().withDefaultValue(Set()),Map().withDefaultValue(Set()),
       Map().withDefaultValue(Set()),Map().withDefaultValue(Set()),Set(),Set(),
-      Map(), Map().withDefaultValue(None), Map().withDefaultValue(Nil))
+      Map(), Set(), Map(),Map(), Map().withDefaultValue(None), Map().withDefaultValue(Nil))
 
 
     /** Generates a mermaid graph with all edges */
@@ -237,7 +264,7 @@ object Program2:
 
         val isConditionSatisfied = rx.edgeConditions.getOrElse(edge, None) match {
           case None => true 
-          case Some(condition) => Condition.evaluate(condition, rx.val_env)
+          case Some(condition) => Condition.evaluate(condition, rx.val_env,rx.clock_env)
         }
 
         val line = if (isGloballyActive && isConditionSatisfied) then "---" else "-.-"

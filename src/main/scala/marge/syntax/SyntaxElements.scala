@@ -18,23 +18,26 @@ object Condition {
   case class AtomicCond(left: QName, op: String, right: Either[Int, QName]) extends Condition
   case class And(left: Condition, right: Condition) extends Condition
   case class Or(left: Condition, right: Condition) extends Condition
-  
-  private def getValue(qname: QName, env: Map[QName, Int]): Int = {
-    env.get(qname).getOrElse {
-      if (qname.n.size > 1) {
-        val globalName = QName(List(qname.n.last))
-        env.getOrElse(globalName, 0)
-      } else {
-        0
+
+  private def getValue(qname: QName, val_env: Map[QName, Int], clock_env: Map[QName, Int]): Int = {
+    val_env.get(qname)
+      .orElse(clock_env.get(qname))
+      .getOrElse {
+        if (qname.n.size > 1) {
+          val globalName = QName(List(qname.n.last))
+          val_env.getOrElse(globalName, clock_env.getOrElse(globalName, 0))
+        } else {
+          0
+        }
       }
-    }
   }
-  def evaluate(condition: Condition, env: Map[QName, Int]): Boolean = condition match {
+
+  def evaluate(condition: Condition, val_env: Map[QName, Int], clock_env: Map[QName, Int]): Boolean = condition match {
     case AtomicCond(left, op, right) =>
-      val leftVal = getValue(left, env)
+      val leftVal = getValue(left, val_env, clock_env)
       val rightVal = right match {
         case Left(i) => i
-        case Right(qname) => getValue(qname, env)
+        case Right(qname) => getValue(qname, val_env, clock_env)
       }
       op match {
         case ">=" => leftVal >= rightVal
@@ -45,8 +48,8 @@ object Condition {
         case "<"  => leftVal < rightVal
         case _    => false
       }
-    case And(l, r) => evaluate(l, env) && evaluate(r, env)
-    case Or(l, r) => evaluate(l, env) || evaluate(r, env)
+    case And(l, r) => evaluate(l, val_env, clock_env) && evaluate(r, val_env, clock_env)
+    case Or(l, r) => evaluate(l, val_env, clock_env) || evaluate(r, val_env, clock_env)
   }
 }
 

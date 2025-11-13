@@ -13,6 +13,7 @@ lazy val marge = project.in(file("."))
     scalaJSUseMainModuleInitializer := true,
     Compile / mainClass := Some("marge.frontend.Main"),
     Compile / fastLinkJS / scalaJSLinkerOutputDirectory := baseDirectory.value / "lib" / "caos"/ "tool" / "js" / "gen",
+    scalacOptions ++= Seq("-feature"),
     libraryDependencies ++= Seq(
       "org.typelevel" %%% "cats-parse" % "0.3.4", 
       "org.scala-lang.modules" %%% "scala-xml" % "2.2.0",

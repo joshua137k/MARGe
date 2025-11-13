@@ -45,8 +45,12 @@ object CytoscapeConverter {
     val stateNodes = rx.states.map { state =>
       val parentId = if (state.n.size > 1) Some(state.scope.toString) else None
       val parentJson = parentId.map(p => s""", "parent": "$p"""").getOrElse("")
-      val classes = "state-node " + (if (rx.inits.contains(state)) "current-state" else "")
-      s"""{ "data": { "id": "${state.toString}", "label": "${state.show}" ${parentJson} }, "classes": "$classes" }"""
+      val invariantOpt = rx.invariants.get(state)
+      val invariantClass = invariantOpt.map(_ => " has-invariant").getOrElse("")
+      val invariantJson = invariantOpt.map(cond => s""", "invariant": "${escapeJson(cond.toMermaidString)}"""").getOrElse("")
+      val classes = "state-node " + (if (rx.inits.contains(state)) "current-state" else "") + invariantClass
+      
+      s"""{ "data": { "id": "${state.toString}", "label": "${state.show}" ${parentJson}${invariantJson} }, "classes": "$classes" }"""
     }
 
     val eventNodes = edgesThatCreateNodes.map { edge =>
@@ -87,7 +91,7 @@ object CytoscapeConverter {
       }
 
       val updates = rx.edgeUpdates.getOrElse(edge, Nil)
-      val fullUpdateLabel = formatStatements(updates).replace("\n", " ") // A lógica para atualizações pode ser similar
+      val fullUpdateLabel = formatStatements(updates).replace("\n", " ") 
       var updateDisplayLabel = fullUpdateLabel
       var updateExtraData = ""
       var updateClasses = ""
@@ -135,7 +139,7 @@ object CytoscapeConverter {
   }
 
   private def isConditionSatisfied(edge: Edge, rx: RxGraph): Boolean =
-    rx.edgeConditions.getOrElse(edge, None).forall(cond => Condition.evaluate(cond, rx.val_env))
+    rx.edgeConditions.getOrElse(edge, None).forall(cond => Condition.evaluate(cond, rx.val_env,rx.clock_env))
 
   private def formatCyEdge(id: String, source: String, target: String, label: String, classes: String, extraData: String = ""): String =
     s"""{ "data": { "id": "$id", "source": "$source", "target": "$target", "label": "${escapeJson(label)}"$extraData }, "classes": "$classes" }"""

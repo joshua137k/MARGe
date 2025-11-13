@@ -134,11 +134,17 @@ object UppaalConverter {
     }
     
     val finalNumHyperedges = arrayLInitializerEntries.distinct.size
+    
+    val clockDeclarations = if (rxGraph.clocks.nonEmpty) {
+      s"clock ${rxGraph.clocks.map(_.show.replaceAll("[^a-zA-Z0-9_]", "_")).mkString(", ")};"
+    } else {
+      ""
+    }
     val declarationBuilder = new StringBuilder(
       s"""// -----------------------------------------------------------
          |// 1. Array Sizes and Constants
          |// -----------------------------------------------------------
-         |clock x;
+         |$clockDeclarations
          |const int NUM_EDGES = ${simpleEdges.size};
          |const int NUM_HYPEREDGES = $finalNumHyperedges;
          |const int NUM_IDS = ${actionLabels.size};
@@ -227,9 +233,13 @@ object UppaalConverter {
     val locationNodes = allStates.map { stateName =>
       val stateId = stateToId(stateName)
       val (x, y) = locationData(stateName)
+      val invariantNode = rxGraph.invariants.get(stateName)
+        .map(cond => <label kind="invariant" x={x.toString} y={(y + 15).toString}>{conditionToString(cond)}</label>)
+        .getOrElse(NodeSeq.Empty)
 
       <location id={stateId} x={x.toString} y={y.toString}>
         <name x={(x - 20).toString} y={(y - 30).toString}>{stateName.show}</name>
+        {invariantNode}
       </location>
     }
     
@@ -240,7 +250,7 @@ object UppaalConverter {
         val baseGuard = s"A[$edgeIndex].stat == 1"
         val extraCondOpt = rxGraph.edgeConditions.get(edge).flatten.map(conditionToString)
         val fullGuard = extraCondOpt.map(c => s"$baseGuard && $c").getOrElse(baseGuard)
-        val assignment = s"update_hyperedges_by_id($actionId), x=0"
+        val assignment = s"update_hyperedges_by_id($actionId)"
         
         val (sourceX, sourceY) = locationData(source)
         val (targetX, targetY) = locationData(target)

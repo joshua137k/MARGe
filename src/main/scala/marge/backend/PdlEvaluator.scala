@@ -16,11 +16,8 @@ object PdlEvaluator {
     program match {
       case Act(nameFromFormula) =>
         initialConfigs.flatMap { config =>
-          // For each global configuration, we consider the transition of each
-          // active automaton (each state in 'inits') individually.
+
           config.inits.flatMap { initState =>
-            // Creates a temporary configuration focused on a single automaton
-            // to obtain its possible transitions without interference from the others.
             val singleStateConfig = config.copy(inits = Set(initState))
             val transitions = RxSemantics.nextEdge(singleStateConfig)
 
@@ -69,7 +66,7 @@ object PdlEvaluator {
         config.inits.contains(name)
 
       case CondProp(cond) =>
-        Condition.evaluate(cond, config.val_env)
+        Condition.evaluate(cond, config.val_env,config.clock_env)
 
 
       case Not(p) => !evaluateFormula(config, p)

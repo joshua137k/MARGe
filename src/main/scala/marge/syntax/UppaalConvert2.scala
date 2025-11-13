@@ -26,6 +26,12 @@ object UppaalConverter2 {
     val functionCounter = new AtomicInteger(0)
     val generatedFunctions = new StringBuilder
 
+    val clockDeclarations = if (stx.clocks.nonEmpty) {
+      s"clock ${stx.clocks.map(sanitizeQName).mkString(", ")};"
+    } else {
+      ""
+    }
+
     val variableDeclarations = stx.val_env
       .map { case (q, v) => s"int ${sanitizeQName(q)} = $v;" }
       .mkString("\n")
@@ -95,9 +101,13 @@ object UppaalConverter2 {
     val locationNodes = allStates.map { stateName =>
       val stateId = stateToId(stateName)
       val (x, y) = locationData(stateName)
+      val invariantNode = stx.invariants.get(stateName)
+        .map(cond => <label kind="invariant" x={x.toString} y={(y + 15).toString}>{conditionToString(cond)}</label>)
+        .getOrElse(NodeSeq.Empty)
 
       <location id={stateId} x={x.toString} y={y.toString}>
         <name x={(x - 20).toString} y={(y - 30).toString}>{stateName.show}</name>
+        {invariantNode}
       </location>
     }
 
@@ -132,7 +142,9 @@ object UppaalConverter2 {
     }
 
     val declarationText =
-      s"""// Variáveis globais
+      s"""// Clocks
+$clockDeclarations
+//Variáveis globais
 $variableDeclarations
 
 // Funções geradas para a lógica das transições

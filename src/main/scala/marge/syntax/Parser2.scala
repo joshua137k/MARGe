@@ -81,7 +81,13 @@ object Parser2 :
   )
 
   def statement(rx:P[RxGraph]): P[RxGraph] =
-    init | aut(rx) | intDeclaration | edge
+    init | aut(rx) | intDeclaration | clockDeclaration  | invariantDeclaration | edge
+  
+  def invariantDeclaration: P[RxGraph] =
+  (P.string("inv") *> sps *> qname ~ (P.char(':').surroundedBy(sps) *> conditionExpr))
+    .map { case (stateName, condition) =>
+      RxGraph().addInvariant(stateName, condition)
+    }
 
   def init: P[RxGraph] =
     (P.string("init") *> sps *> qname)
@@ -96,7 +102,17 @@ object Parser2 :
   def intDeclaration: P[RxGraph] =
     (P.string("int") *> sps *> qname ~
       (sps *> P.char('=') *> sps *> integer)
-    ).map { case (name, value) => RxGraph().addVariable(name, value) }
+    ).flatMap {
+      case (name, value) => P.pure(RxGraph().addVariable(name, value))
+    }
+  
+  def clockDeclaration: P[RxGraph] =
+  (P.string("clock") *> sps *> qname.repSep(P.char(',').surroundedBy(sps)))
+    .map { names =>
+      names.toList.foldLeft(RxGraph()) { (acc, name) =>
+        acc.addClock(name)
+      }
+    }
 
   def comparisonOp: P[String] = (
     P.string(">=").as(">=") |
@@ -157,11 +173,14 @@ object Parser2 :
   }.map { case (lhs, expr) => CounterUpdate(lhs, expr) }
 
   def statementParser: P[Statement] = P.recursive { self =>
-    val updateStmt = counterUpdate.map(UpdateStmt.apply)
+    val updateStmt = counterUpdate.flatMap { upd =>
+
+      P.pure(UpdateStmt(upd))
+    }
     val ifThenStmt = (
       P.string("if") *> sps *> conditionExpr ~
       (sps *> P.string("then") *> sps *> P.char('{') *> sps *>
-        self.repSep(sep) <* sep.? <* sps <* P.char('}') )
+        self.repSep(sep) <* sep.? <* sps <* P.char('}'))
     ).map { case (cond, stmts) => IfThenStmt(cond, stmts.toList) }
     
     ifThenStmt.backtrack | updateStmt

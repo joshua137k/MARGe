@@ -1,6 +1,6 @@
 var currentCytoscapeInstance = null;
 var textTraceHistory = [];
-
+var autoDelayTimer = null;
 
 
 
@@ -238,7 +238,8 @@ function setupInitialCytoscape(mainContainerId, combinedJsonData) {
             style: [ 
                 { selector: 'node', style: { 'label': 'data(label)', 'text-valign': 'center', 'color': '#c0caf5', 'font-family': 'sans-serif', 'font-weight': 'bold', 'text-outline-width': 2, 'text-outline-color': '#1a1b26' } },
                 { selector: 'edge', style: { 'width': 2, 'curve-style': 'bezier', 'line-color': '#565f89', 'target-arrow-color': '#565f89', 'label': 'data(label)', 'color': '#c0caf5', 'text-outline-color': '#1a1b26', 'text-outline-width': 2, 'font-size': '14px' } },
-                { selector: 'node.state-node', style: { 'background-color': '#7aa2f7', 'shape': 'ellipse', 'width': 50, 'height': 50, 'border-width': 3, 'border-color': '#414868' } },
+                { selector: 'node.state-node', style: { 'background-color': '#7aa2f7', 'shape': 'ellipse', 'width': 50, 'height': 50, 'border-width': 3, 'border-color': '#414868','text-wrap': 'wrap','text-valign': 'center' } },
+                {selector: 'node.has-invariant',style: {'label': (ele) => ele.data('label') + '\n[' + ele.data('invariant') + ']'}},
                 { selector: '.current-state', style: { 'background-color': '#9ece6a', 'border-color': '#c0caf5' } },
                 { selector: 'node.event-node', style: { 'background-color': '#414868', 'shape': 'rectangle', 'width': 50, 'height': 30, 'border-width': 2, 'border-color': '#565f89' } },
                 { selector: 'edge', style: { 'target-arrow-shape': 'none' } },
@@ -345,6 +346,46 @@ function updateSidePanel(panelId, panelData) {
         panelDiv.appendChild(document.createElement('hr'));
     }
 
+    const clocks = panelData.clocks || {};
+    const variables = panelData.variables || {};
+
+    if (Object.keys(clocks).length > 0) {
+        var clocksTitle = document.createElement('p');
+        clocksTitle.innerText = 'Clocks:';
+        clocksTitle.style.fontWeight = 'bold';
+        panelDiv.appendChild(clocksTitle);
+        var clocksList = document.createElement('ul');
+        clocksList.style.listStyleType = 'none';
+        clocksList.style.paddingLeft = '10px';
+        for (const [name, value] of Object.entries(clocks)) {
+            var clockItem = document.createElement('li');
+            clockItem.innerText = `${name}: ${value}`;
+            clocksList.appendChild(clockItem);
+        }
+        panelDiv.appendChild(clocksList);
+    }
+    
+    if (Object.keys(variables).length > 0) {
+        var varsTitle = document.createElement('p');
+        varsTitle.innerText = 'Variables:';
+        varsTitle.style.fontWeight = 'bold';
+        panelDiv.appendChild(varsTitle);
+        var varsList = document.createElement('ul');
+        varsList.style.listStyleType = 'none';
+        varsList.style.paddingLeft = '10px';
+        for (const [name, value] of Object.entries(variables)) {
+            var varItem = document.createElement('li');
+            varItem.innerText = `${name}: ${value}`;
+            varsList.appendChild(varItem);
+        }
+        panelDiv.appendChild(varsList);
+    }
+
+    if (Object.keys(clocks).length > 0 || Object.keys(variables).length > 0) {
+        panelDiv.appendChild(document.createElement('hr'));
+    }
+
+
     var title = document.createElement('p');
     title.innerText = 'Enabled transitions:';
     title.style.fontWeight = 'bold';
@@ -359,12 +400,45 @@ function updateSidePanel(panelId, panelData) {
             transButton.style.display = 'block';
             transButton.style.width = '100%';
             transButton.style.marginBottom = '5px';
-            transButton.onclick = function() {
-                CaosConfig2.takeStep(JSON.stringify(edge));
-            };
+            if (edge.isDelay) {
+                transButton.onclick = function() { handleDelayClick(); };
+            } else {
+                transButton.onclick = function() {
+                    // Para o timer de auto-delay se o usuário escolher uma transição de evento
+                    stopAutoDelay(); 
+                    CaosConfig2.takeStep(JSON.stringify(edge));
+                };
+            }
             panelDiv.appendChild(transButton);
         });
     }
+
+    const hasDelay = panelData.enabled.some(t => t.isDelay);
+    if (hasDelay) {
+        var timeControlDiv = document.createElement('div');
+        timeControlDiv.style.marginTop = '10px';
+        var autoDelayCheckbox = document.createElement('input');
+        autoDelayCheckbox.type = 'checkbox';
+        autoDelayCheckbox.id = 'autoDelayCheckbox';
+        autoDelayCheckbox.onchange = function() { toggleAutoDelay(this.checked); };
+        
+        var autoDelayLabel = document.createElement('label');
+        autoDelayLabel.htmlFor = 'autoDelayCheckbox';
+        autoDelayLabel.innerText = ' Auto-advance time';
+        
+        timeControlDiv.appendChild(autoDelayCheckbox);
+        timeControlDiv.appendChild(autoDelayLabel);
+        panelDiv.appendChild(timeControlDiv);
+        
+        // Mantém o estado do checkbox entre as renderizações
+        if (autoDelayTimer) {
+             autoDelayCheckbox.checked = true;
+        }
+    } else {
+        // Se não houver transição de delay, garante que o timer esteja parado
+        stopAutoDelay();
+    }
+    panelDiv.appendChild(document.createElement('hr'));
 
     var layoutSelectorContainer = document.createElement('div');
     layoutSelectorContainer.style.marginTop = '20px';
@@ -416,4 +490,39 @@ function updateSidePanel(panelId, panelData) {
             currentCytoscapeInstance.layout(layoutOptions).run();
         }
     };
+}
+
+
+function stopAutoDelay() {
+    if (autoDelayTimer) {
+        clearInterval(autoDelayTimer);
+        autoDelayTimer = null;
+    }
+    var checkbox = document.getElementById('autoDelayCheckbox');
+    if (checkbox) {
+        checkbox.checked = false;
+    }
+}
+
+function handleDelayClick() {
+    stopAutoDelay(); // Para o modo automático se o usuário intervir manualmente.
+    CaosConfig2.advanceTime();
+}
+
+function toggleAutoDelay(isChecked) {
+    if (isChecked) {
+        if (autoDelayTimer) return; // Já está rodando
+
+        // Avança o tempo uma vez imediatamente ao marcar
+        CaosConfig2.advanceTime(); 
+        
+        // Inicia um timer que chama 'advanceTime' a cada segundo.
+        autoDelayTimer = setInterval(() => {
+            // A verificação se a transição ainda existe é feita implicitamente,
+            // pois o painel será re-renderizado e o timer será parado se 'hasDelay' for falso.
+            CaosConfig2.advanceTime();
+        }, 1000); // 1000ms = 1 segundo
+    } else {
+        stopAutoDelay();
+    }
 }

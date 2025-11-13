@@ -49,9 +49,26 @@ object CaosConfig2 extends Configurator[RxGraph]:
 
   private def generateSimulationJson(graph: RxGraph, traversedEdge: Option[Edge] = None): String = {
     val graphElementsJson = CytoscapeConverter(graph)
-    val enabledTransitions = RxSemantics.nextEdge(graph).map(_._1)
-    val enabledJson = enabledTransitions.map { case (from, to, lbl) =>
-      s"""{"from":"$from", "to":"$to", "lbl":"$lbl", "label":"${lbl.show}"}"""
+
+    val eventTransitions = RxSemantics.nextEdge(graph).map(_._1)
+    val eventTransitionsJson = eventTransitions.map { case (from, to, lbl) =>
+      s"""{"from":"$from", "to":"$to", "lbl":"$lbl", "label":"${lbl.show}", "isDelay": false}"""
+    }.mkString(",")
+
+    val delayTransitionJson = if (RxSemantics.nextDelay(graph).nonEmpty) {
+        s"""{"label":"delay", "isDelay": true}"""
+    } else {
+        ""
+    }
+    
+    val allEnabledTransitions = Seq(eventTransitionsJson, delayTransitionJson).filter(_.nonEmpty).mkString(",")
+
+    val clocksJson = graph.clock_env.map { case (name, value) =>
+      s""""${name.show}": $value"""
+    }.mkString(",")
+    
+    val valEnvJson = graph.val_env.map { case (name, value) =>
+      s""""${name.show}": $value"""
     }.mkString(",")
 
     val traversedJson = traversedEdge match {
@@ -62,15 +79,35 @@ object CaosConfig2 extends Configurator[RxGraph]:
     s"""
        |{
        |  "graphElements": $graphElementsJson,
-       |  "panelData": { "enabled": [$enabledJson], "canUndo": ${simulationHistory.size > 1} },
+       |  "panelData": {
+       |    "enabled": [$allEnabledTransitions],
+       |    "clocks": {$clocksJson},
+       |    "variables": {$valEnvJson},
+       |    "canUndo": ${simulationHistory.size > 1}
+       |  },
        |  "lastTransition": $traversedJson
        |}
        |""".stripMargin
   }
 
-   private def stringToQName(str: String): Program2.QName =
+  private def stringToQName(str: String): Program2.QName =
     if (str.isEmpty) Program2.QName(Nil)
     else Program2.QName(str.split('/').toList)
+  
+  @JSExport
+  def advanceTime(): Unit = {
+    simulationHistory.headOption.foreach { currentState =>
+      RxSemantics.nextDelay(currentState).headOption match {
+        case Some((_, nextRxGraph)) =>
+          simulationHistory = nextRxGraph :: simulationHistory
+          val fullJson = generateSimulationJson(nextRxGraph, None) 
+          global.renderCytoscapeGraph("cytoscapeMainContainer", fullJson, false)
+        case None =>
+          println("Aviso: Nenhuma transição de 'delay' encontrada no estado atual.")
+      }
+    }
+  }
+
 
   @JSExport
   def takeStep(edgeJson: String): Unit = {
@@ -165,6 +202,21 @@ object CaosConfig2 extends Configurator[RxGraph]:
       |bb ->> offA2: onOffA if (c_active == 0)
       |""".stripMargin
       -> "Basic example with counter updates and conditions",
+  "TIMER" ->
+  """clock t;
+    |init s0;
+    |inv s1: t <= 10;
+    |int c = 0
+    |s0 --> s1: start if(c==0) then {
+    |  t' := 0;
+    |}
+    |
+    |
+    |s1 --> s2: timeout if (t >= 10)
+    |
+    |s1 --> s0: escape if (t < 5)
+    |""".stripMargin
+  -> "Timer in MARGE!!!",
 
   "Counter" ->
     """init s0
