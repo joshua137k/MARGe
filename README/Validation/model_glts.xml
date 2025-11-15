@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE nta PUBLIC '-//Uppaal Team//DTD Flat System 1.6//EN' 'http://www.it.uu.se/research/group/darts/uppaal/flat-1_6.dtd'>
+<nta>
+	<declaration>
+// Clocks
+clock t;
+//Variáveis globais
+int choose_X_active = 1;
+int alloc_Y = 11;
+int safe_state_active = 1;
+int alloc_Z = 5;
+int alloc_X = 5;
+int available = 9;
+int choose_Y_active = 1;
+int start_active = 1;
+int reset_active = 1;
+int need_Z = 10;
+int choose_Z_active = 1;
+int T_MAX = 10;
+int timeout_active = 1;
+int TOTAL = 30;
+int need_X = 8;
+int TRUE = 1;
+int done = 0;
+int need_Y = 17;
+
+// Funções geradas para a lógica das transições
+void update_0() {
+	available = 9;
+	done = 0;
+	t = 0;
+}
+
+void update_1() {
+	available = available + alloc_X;
+	done = done + 1;
+	t = 0;
+	choose_X_active = 0;
+}
+
+void update_2() {
+	available = available + alloc_Z;
+	done = done + 1;
+	t = 0;
+	choose_Z_active = 0;
+}
+
+void update_3() {
+	available = available + alloc_Y;
+	done = done + 1;
+	t = 0;
+	choose_Y_active = 0;
+}
+	</declaration>
+	<template>
+		<name>Template</name>
+		<location id="id0" x="0" y="0">
+			<name x="-20" y="-30">s0</name>
+			<label kind="invariant" x="0" y="15">t &lt;= T_MAX</label>
+		</location>
+		<location id="id1" x="400" y="0">
+			<name x="380" y="-30">s1</name>
+			<label kind="invariant" x="400" y="15">t &lt;= T_MAX</label>
+		</location>
+		<location id="id2" x="800" y="0">
+			<name x="780" y="-30">s_safe</name>
+		</location>
+		<location id="id3" x="0" y="350">
+			<name x="-20" y="320">s_timeout</name>
+		</location>
+		<location id="id4" x="400" y="350">
+			<name x="380" y="320">s_unsafe</name>
+		</location>
+		<init ref="id0"/>
+		<transition id="id5">
+			<source ref="id0"/>
+			<target ref="id1"/>
+			<label kind="guard" x="-204" y="-59">(start_active == 1) &amp;&amp; (TRUE == 1)</label>
+			<label kind="assignment" x="280" y="-76">update_0()</label>
+			<nail x="200" y="-50"/>
+		</transition>
+		<transition id="id6">
+			<source ref="id1"/>
+			<target ref="id1"/>
+			<label kind="guard" x="442" y="-238">(choose_Y_active == 1) &amp;&amp; ((need_Y &lt;= available) &amp;&amp; (t &lt;= T_MAX))</label>
+			<label kind="assignment" x="357" y="-212">update_3()</label>
+			<nail x="442" y="-221"/>
+		</transition>
+		<transition id="id7">
+			<source ref="id1"/>
+			<target ref="id2"/>
+			<label kind="guard" x="467" y="-68">(safe_state_active == 1) &amp;&amp; (done == 3)</label>
+			<nail x="600" y="-50"/>
+		</transition>
+		<transition id="id8">
+			<source ref="id1"/>
+			<target ref="id3"/>
+			<label kind="guard" x="-382" y="289">(timeout_active == 1) &amp;&amp; ((t &gt;= T_MAX) &amp;&amp; (done &lt; 3))</label>
+			<nail x="243" y="225"/>
+		</transition>
+		<transition id="id9">
+			<source ref="id1"/>
+			<target ref="id1"/>
+			<label kind="guard" x="-229" y="-187">(choose_X_active == 1) &amp;&amp; ((need_X &lt;= available) &amp;&amp; (t &lt;= T_MAX))</label>
+			<label kind="assignment" x="187" y="-153">update_1()</label>
+			<nail x="280" y="-161"/>
+		</transition>
+		<transition id="id10">
+			<source ref="id1"/>
+			<target ref="id1"/>
+			<label kind="guard" x="544" y="-153">(choose_Z_active == 1) &amp;&amp; ((need_Z &lt;= available) &amp;&amp; (t &lt;= T_MAX))</label>
+			<label kind="assignment" x="544" y="-136">update_2()</label>
+			<nail x="535" y="-144"/>
+		</transition>
+		<transition id="id11">
+			<source ref="id2"/>
+			<target ref="id0"/>
+			<label kind="guard" x="578" y="0">reset_active == 1</label>
+			<nail x="400" y="100"/>
+		</transition>
+		<transition id="id12">
+			<source ref="id4"/>
+			<target ref="id0"/>
+			<label kind="guard" x="323" y="280">reset_active == 1</label>
+			<nail x="157" y="225"/>
+		</transition>
+	</template>
+	<system>Process = Template(); system Process;</system>
+	<queries>
+		<query>
+			<formula/>
+			<comment/>
+		</query>
+	</queries>
+</nta>
