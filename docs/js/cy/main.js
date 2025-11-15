@@ -319,6 +319,11 @@ function setupInitialCytoscape(mainContainerId, combinedJsonData) {
 function updateSidePanel(panelId, panelData) {
     var panelDiv = document.getElementById(panelId);
     if (!panelDiv) return;
+    let savedDelayValue = '1.0';
+    const existingInput = document.getElementById('autoDelayIntervalInput');
+    if (existingInput && existingInput.value) {
+        savedDelayValue = existingInput.value;
+    }
     panelDiv.innerHTML = '';
 
     var undoButton = document.createElement('button');
@@ -357,9 +362,14 @@ function updateSidePanel(panelId, panelData) {
         var clocksList = document.createElement('ul');
         clocksList.style.listStyleType = 'none';
         clocksList.style.paddingLeft = '10px';
+        let num = Number(savedDelayValue);      
+
+        const strValue = savedDelayValue.toString();
+        const decimalPlaces = (strValue.split('.')[1] || '').length;
+
         for (const [name, value] of Object.entries(clocks)) {
             var clockItem = document.createElement('li');
-            clockItem.innerText = `${name}: ${value}`;
+            clockItem.innerText = `${name}: ${value.toFixed(decimalPlaces)}`;
             clocksList.appendChild(clockItem);
         }
         panelDiv.appendChild(clocksList);
@@ -404,7 +414,6 @@ function updateSidePanel(panelId, panelData) {
                 transButton.onclick = function() { handleDelayClick(); };
             } else {
                 transButton.onclick = function() {
-                    // Para o timer de auto-delay se o usuário escolher uma transição de evento
                     stopAutoDelay(); 
                     CaosConfig2.takeStep(JSON.stringify(edge));
                 };
@@ -417,6 +426,11 @@ function updateSidePanel(panelId, panelData) {
     if (hasDelay) {
         var timeControlDiv = document.createElement('div');
         timeControlDiv.style.marginTop = '10px';
+        timeControlDiv.style.border = '1px solid #414868';
+        timeControlDiv.style.padding = '8px';
+        timeControlDiv.style.borderRadius = '5px';
+        
+        var checkboxDiv = document.createElement('div');
         var autoDelayCheckbox = document.createElement('input');
         autoDelayCheckbox.type = 'checkbox';
         autoDelayCheckbox.id = 'autoDelayCheckbox';
@@ -426,16 +440,43 @@ function updateSidePanel(panelId, panelData) {
         autoDelayLabel.htmlFor = 'autoDelayCheckbox';
         autoDelayLabel.innerText = ' Auto-advance time';
         
-        timeControlDiv.appendChild(autoDelayCheckbox);
-        timeControlDiv.appendChild(autoDelayLabel);
+        checkboxDiv.appendChild(autoDelayCheckbox);
+        checkboxDiv.appendChild(autoDelayLabel);
+        timeControlDiv.appendChild(checkboxDiv);
+        
+        var delayInputDiv = document.createElement('div');
+        delayInputDiv.style.marginTop = '8px';
+
+        var delayLabel = document.createElement('label');
+        delayLabel.htmlFor = 'autoDelayIntervalInput';
+        delayLabel.innerText = 'Delay (s): ';
+        
+        var delayInput = document.createElement('input');
+        delayInput.type = 'number';
+        delayInput.id = 'autoDelayIntervalInput';
+        
+        delayInput.value = savedDelayValue; 
+        delayInput.min = '0.1'; 
+        delayInput.step = '0.1'; 
+        delayInput.style.width = '60px';
+
+        delayInput.onchange = function() {
+            if (autoDelayTimer) { 
+                stopAutoDelay();
+                toggleAutoDelay(true); 
+            }
+        };
+
+        delayInputDiv.appendChild(delayLabel);
+        delayInputDiv.appendChild(delayInput);
+        timeControlDiv.appendChild(delayInputDiv);
+        
         panelDiv.appendChild(timeControlDiv);
         
-        // Mantém o estado do checkbox entre as renderizações
         if (autoDelayTimer) {
              autoDelayCheckbox.checked = true;
         }
     } else {
-        // Se não houver transição de delay, garante que o timer esteja parado
         stopAutoDelay();
     }
     panelDiv.appendChild(document.createElement('hr'));
@@ -505,23 +546,49 @@ function stopAutoDelay() {
 }
 
 function handleDelayClick() {
-    stopAutoDelay(); // Para o modo automático se o usuário intervir manualmente.
-    CaosConfig2.advanceTime();
+    stopAutoDelay();
+    
+    const delayInput = document.getElementById('autoDelayIntervalInput');
+    let delayAmount = 1.0; 
+    if (delayInput && delayInput.value) {
+        let parsedValue = parseFloat(delayInput.value);
+        if (!isNaN(parsedValue) && parsedValue > 0) {
+            delayAmount = parsedValue;
+        }
+    }
+    CaosConfig2.advanceTime(delayAmount);
 }
 
 function toggleAutoDelay(isChecked) {
     if (isChecked) {
-        if (autoDelayTimer) return; // Já está rodando
+        if (autoDelayTimer) return; 
 
-        // Avança o tempo uma vez imediatamente ao marcar
-        CaosConfig2.advanceTime(); 
+        const getDelayAmount = () => {
+            const delayInput = document.getElementById('autoDelayIntervalInput');
+            let delaySeconds = 1.0; 
+            if (delayInput && delayInput.value) {
+                let parsedValue = parseFloat(delayInput.value);
+                if (!isNaN(parsedValue) && parsedValue > 0) {
+                    delaySeconds = parsedValue;
+                } else {
+                    delayInput.value = '1.0';
+                }
+            }
+            return delaySeconds;
+        };
+
+        const runStep = () => {
+            const delayAmount = getDelayAmount();
+            CaosConfig2.advanceTime(delayAmount);
+        };
+
+        runStep(); 
         
-        // Inicia um timer que chama 'advanceTime' a cada segundo.
-        autoDelayTimer = setInterval(() => {
-            // A verificação se a transição ainda existe é feita implicitamente,
-            // pois o painel será re-renderizado e o timer será parado se 'hasDelay' for falso.
-            CaosConfig2.advanceTime();
-        }, 1000); // 1000ms = 1 segundo
+        const delayInput = document.getElementById('autoDelayIntervalInput');
+        let delayMilliseconds = getDelayAmount() * 1000;
+
+        autoDelayTimer = setInterval(runStep, delayMilliseconds);
+
     } else {
         stopAutoDelay();
     }

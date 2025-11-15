@@ -126,9 +126,19 @@ object Parser2 :
   def intOrQName: P[Either[Int, QName]] =
     integer.map(Left(_)) | qname.map(Right(_))
 
+  def double: P[Double] = {
+    val unsignedPart = digit.rep(1) ~ (P.char('.') *> digit.rep(1)).?
+    val signedPart = P.char('-') *> unsignedPart
+    (signedPart | unsignedPart).string.map(_.toDouble)
+  }
+
+
+  def numberOrQName: P[Either[Double, QName]] =
+    double.map(Left(_)) | qname.map(Right(_))
+
   private lazy val conditionTerm: P[Condition] = P.defer {
     val atomic: P[Condition] =
-      (qname.surroundedBy(sps) ~ comparisonOp ~ intOrQName.surroundedBy(sps))
+      (qname.surroundedBy(sps) ~ comparisonOp ~ numberOrQName.surroundedBy(sps))
         .map { case ((left, op), right) => AtomicCond(left, op, right) }
 
     val parens: P[Condition] =
@@ -164,6 +174,7 @@ object Parser2 :
       ).map {
       case ((v, "+"), e) => UpdateExpr.Add(v, e)
       case ((v, "-"), e) => UpdateExpr.Sub(v, e)
+      case _ => throw new IllegalStateException("Erro de lógica do parser: operador inesperado em addSubParser.")
     }
     addSubParser.backtrack | litParser.backtrack | varParser
   }

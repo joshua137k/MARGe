@@ -83,7 +83,7 @@ object RxSemantics extends SOS[QName,RxGraph] {
   }
 
 
-  def applyUpdates(stmts: List[Statement], rx: RxGraph): (Map[QName, Int], Map[QName, Int]) = {
+  def applyUpdates(stmts: List[Statement], rx: RxGraph): (Map[QName, Int], Map[QName, Double]) = {
     def evaluateUpdateExpr(expr: UpdateExpr, env: Map[QName, Int]): Int = {
       expr match {
         case UpdateExpr.Lit(i) => i
@@ -106,7 +106,7 @@ object RxSemantics extends SOS[QName,RxGraph] {
     }
 
     var currentValEnv = rx.val_env
-    var clockResets = Map[QName, Int]()
+    var clockResets = Map[QName, Double]()
 
     def processStatements(s_list: List[Statement]): Unit = {
       for (stmt <- s_list) {
@@ -114,7 +114,7 @@ object RxSemantics extends SOS[QName,RxGraph] {
           case UpdateStmt(upd) =>
             if (rx.clocks.contains(upd.variable)) {
               upd.expr match {
-                case UpdateExpr.Lit(0) => clockResets += (upd.variable -> 0)
+                case UpdateExpr.Lit(0) => clockResets += (upd.variable -> 0.0)
                 case _ => throw new RuntimeException(s"Erro: O clock '${upd.variable.show}' só pode ser resetado para 0 (ex: ${upd.variable.show}' := 0).")
               }
             } else {
@@ -170,17 +170,12 @@ object RxSemantics extends SOS[QName,RxGraph] {
 
   def nextDelay(rx: RxGraph): Set[(QName, RxGraph)] = {
       if (rx.clocks.isEmpty) return Set.empty
-
-      val delayedClockEnv = rx.clock_env.map { case (c, v) => (c, v + 1) }
-      val potentialNextRx = rx.copy(clock_env = delayedClockEnv)
-
-
-      val allInvariantsHold = rx.inits.forall(s => checkInvariant(s, potentialNextRx))
-
-      if (allInvariantsHold) {
-        Set((QName(List("delay")), potentialNextRx))
+      
+      val canTimePass = rx.inits.forall(s => checkInvariant(s, rx))
+      
+      if (canTimePass) {
+        Set((QName(List("delay")), rx))
       } else {
-
         Set.empty
       }
     }

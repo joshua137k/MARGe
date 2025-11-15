@@ -119,7 +119,7 @@ object Program2:
                      act: Edges,
                      val_env: Map[QName, Int], 
                      clocks: Set[QName], 
-                     clock_env: Map[QName, Int],
+                     clock_env: Map[QName, Double],
                      invariants: Map[QName, Condition],
                      edgeConditions: Map[Edge, Option[Condition]], 
                      edgeUpdates: Map[Edge, List[Statement]] 
@@ -135,7 +135,7 @@ object Program2:
     def addClock(name: QName) =
       this.copy(
         clocks = clocks + name,
-        clock_env = clock_env + (name -> 0) // Clocks começam em 0
+        clock_env = clock_env + (name -> 0.0) // Clocks começam em 0.0
       )
     
     def addInvariant(state: QName, cond: Condition) =
@@ -203,7 +203,7 @@ object Program2:
     def apply(): RxGraph = RxGraph(
       Map().withDefaultValue(Set()),Map().withDefaultValue(Set()),
       Map().withDefaultValue(Set()),Map().withDefaultValue(Set()),Set(),Set(),
-      Map(), Set(), Map(),Map(), Map().withDefaultValue(None), Map().withDefaultValue(Nil))
+      Map(), Set(), Map[QName, Double](),Map(), Map().withDefaultValue(None), Map().withDefaultValue(Nil))
 
 
     /** Generates a mermaid graph with all edges */

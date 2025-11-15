@@ -16,7 +16,7 @@ import org.scalajs.dom.html
 import org.scalajs.dom.{Blob, BlobPropertyBag}
 import scala.scalajs.js.URIUtils
 
-import marge.syntax.{Formula as PdlFormula}
+import marge.syntax.{Condition,Formula as PdlFormula}
 import marge.syntax.PdlParser
 import marge.backend.PdlEvaluator
 import marge.syntax.MaRGeTranslator
@@ -95,18 +95,33 @@ object CaosConfig2 extends Configurator[RxGraph]:
     else Program2.QName(str.split('/').toList)
   
   @JSExport
-  def advanceTime(): Unit = {
+  def advanceTime(delayAmount: Double): Unit = {
     simulationHistory.headOption.foreach { currentState =>
-      RxSemantics.nextDelay(currentState).headOption match {
-        case Some((_, nextRxGraph)) =>
-          simulationHistory = nextRxGraph :: simulationHistory
-          val fullJson = generateSimulationJson(nextRxGraph, None) 
-          global.renderCytoscapeGraph("cytoscapeMainContainer", fullJson, false)
-        case None =>
-          println("Aviso: Nenhuma transição de 'delay' encontrada no estado atual.")
+      if (currentState.clocks.isEmpty || delayAmount <= 0) {
+        println("Avanço de tempo inválido.")
+      }
+
+      val delayedClockEnv = currentState.clock_env.map { case (c, v) => (c, v + delayAmount) }
+      val potentialNextState = currentState.copy(clock_env = delayedClockEnv)
+
+      val allInvariantsHold = potentialNextState.inits.forall { s =>
+        potentialNextState.invariants.get(s) match {
+          case Some(inv) => Condition.evaluate(inv, potentialNextState.val_env, potentialNextState.clock_env)
+          case None => true
+        }
+      }
+
+      if (allInvariantsHold) {
+        simulationHistory = potentialNextState :: simulationHistory
+        val fullJson = generateSimulationJson(potentialNextState, None)
+        global.renderCytoscapeGraph("cytoscapeMainContainer", fullJson, false)
+      } else {
+        println(s"Aviso: Nenhuma transição de 'delay' de ${delayAmount}s permitida (viola uma invariante).")
+        global.stopAutoDelay()
       }
     }
   }
+
 
 
   @JSExport
@@ -554,13 +569,12 @@ object CaosConfig2 extends Configurator[RxGraph]:
 
   override val footer: String =
     """Source code at: <a target="_blank"
-      | href="https://github.com/fm-dcc/marge">
-      | https://github.com/fm-dcc/marge</a>. This is a companion tool for
-      | a paper accepted at FACS 2024, based on <a target="_blank"
+      | href="https://github.com/joshua137k/MARGe">
+      | https://github.com/joshua137k/MARGe</a>, based on <a target="_blank"
       | href="https://github.com/arcalab/CAOS">
-      | CAOS</a>. The original version used for FACS can be found at <a target="_blank"
-      | href="https://fm-dcc.github.io/MARGe/marge-0.1.html">
-      | https://fm-dcc.github.io/MARGe/marge-0.1.html</a>.""".stripMargin
+      | CAOS</a>. The original version can be found at <a target="_blank"
+      | href="https://fm-dcc.github.io/MARGe/">
+      | https://fm-dcc.github.io/MARGe/</a>.""".stripMargin
   // Simple animator of Labelled Reactive Graphs, meant to exemplify the
   // | CAOS libraries, used to generate this website.""".stripMargin
   // Source code available online:

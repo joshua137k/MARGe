@@ -1,7 +1,7 @@
 # Animator of Multi Action Reactive Graphs (MARGe)
 
 <!-- Experiments in https://dtinas10.github.io/MARGe/lib/caos/tool/index.html -->
-Run a snapshot of this tool in https://fm-dcc.github.io/MARGe
+Run a snapshot of this tool in https://joshua137k.github.io/MARGe/
 
 Tutorial Video: https://www.dropbox.com/scl/fo/cm0tw42zlebqqzh7s054a/h?rlkey=urd0z5ern6akgkc3l8dqq8l7c&dl=0
 
@@ -26,8 +26,5 @@ You need to get the submodules dependencies (CAOS library), and later compile us
 The result will be a JavaScript file that is already being imported by an existing HTML file. 
 
 1. `git submodule update --init`
-2. `sbt fastLinkJS` obs jdk17
+2. `sbt fastLinkJS` obs jdk17   (-java-home "C:\Program Files\Java\jdk-17")
 3. open the file `lib/tool/index.html`
-
-
-my compile `sbt -java-home "C:\Program Files\Java\jdk-17" fastLinkJS`

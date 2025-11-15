@@ -6,7 +6,7 @@ import marge.syntax.Formula.*
 import marge.syntax.PdlProgram.*
 import marge.syntax.Program2.QName
 import marge.syntax.Condition
-
+import cats.parse.Parser.*
 
 /**
  * Supports:
@@ -40,6 +40,15 @@ object ModalParser {
     pdlIdent.repSep(P.char('/')).map(_.toList.mkString("/")).surroundedBy(sps)
   
   private def integer: P[Int] = digit.rep(1).string.map(_.toInt)
+  private def double: P[Double] = {
+    val unsignedPart = digit.rep(1) ~ (P.char('.') *> digit.rep(1)).?
+    val signedPart = P.char('-') *> unsignedPart
+    (signedPart | unsignedPart).string.map(_.toDouble)
+  }
+
+  private def numberOrQName: P[Either[Double, QName]] =
+    double.map(Left(_)) | pdlQNameParser.map(Right(_))
+
   private def comparisonOp: P[String] = (
     P.string(">=").as(">=") | P.string("<=").as("<=") |
     P.string("==").as("==") | P.string("!=").as("!=") |
@@ -49,7 +58,7 @@ object ModalParser {
     integer.map(Left(_)) | pdlQNameParser.map(Right(_))
 
   private def pdlConditionParser: P[Condition] =
-    (pdlQNameParser ~ comparisonOp ~ intOrQName)
+    (pdlQNameParser ~ comparisonOp ~ numberOrQName)
       .map { case ((left, op), right) => Condition.AtomicCond(left, op, right) }
 
   private def sym(s: String): P[Unit] = P.string(s).surroundedBy(sps)

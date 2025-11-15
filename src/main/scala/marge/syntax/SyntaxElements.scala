@@ -15,37 +15,37 @@ sealed trait Condition {
 }
 
 object Condition {
-  case class AtomicCond(left: QName, op: String, right: Either[Int, QName]) extends Condition
+  case class AtomicCond(left: QName, op: String, right: Either[Double, QName]) extends Condition
   case class And(left: Condition, right: Condition) extends Condition
   case class Or(left: Condition, right: Condition) extends Condition
-
-  private def getValue(qname: QName, val_env: Map[QName, Int], clock_env: Map[QName, Int]): Int = {
-    val_env.get(qname)
-      .orElse(clock_env.get(qname))
+  private val epsilon = 1e-9
+  private def getValue(qname: QName, val_env: Map[QName, Int], clock_env: Map[QName, Double]): Double = {
+    clock_env.get(qname)
+      .orElse(val_env.get(qname).map(_.toDouble))
       .getOrElse {
         if (qname.n.size > 1) {
           val globalName = QName(List(qname.n.last))
-          val_env.getOrElse(globalName, clock_env.getOrElse(globalName, 0))
+          clock_env.getOrElse(globalName, val_env.getOrElse(globalName, 0).toDouble)
         } else {
-          0
+          0.0
         }
       }
   }
 
-  def evaluate(condition: Condition, val_env: Map[QName, Int], clock_env: Map[QName, Int]): Boolean = condition match {
+  def evaluate(condition: Condition, val_env: Map[QName, Int], clock_env: Map[QName, Double]): Boolean = condition match {
     case AtomicCond(left, op, right) =>
       val leftVal = getValue(left, val_env, clock_env)
       val rightVal = right match {
-        case Left(i) => i
+        case Left(d) => d
         case Right(qname) => getValue(qname, val_env, clock_env)
       }
       op match {
-        case ">=" => leftVal >= rightVal
-        case "<=" => leftVal <= rightVal
-        case "==" => leftVal == rightVal
-        case "!=" => leftVal != rightVal
-        case ">"  => leftVal > rightVal
-        case "<"  => leftVal < rightVal
+        case ">=" => leftVal >= rightVal - epsilon
+        case "<=" => leftVal <= rightVal + epsilon
+        case ">"  => leftVal > rightVal + epsilon
+        case "<"  => leftVal < rightVal - epsilon
+        case "==" => Math.abs(leftVal - rightVal) < epsilon
+        case "!=" => Math.abs(leftVal - rightVal) >= epsilon
         case _    => false
       }
     case And(l, r) => evaluate(l, val_env, clock_env) && evaluate(r, val_env, clock_env)
