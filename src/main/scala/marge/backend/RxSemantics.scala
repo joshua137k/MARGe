@@ -170,8 +170,10 @@ object RxSemantics extends SOS[QName,RxGraph] {
 
   def nextDelay(rx: RxGraph): Set[(QName, RxGraph)] = {
       if (rx.clocks.isEmpty) return Set.empty
+      val delayedClockEnv = rx.clock_env.map { case (c, v) => (c, v + 0.000001) }
+      val potentialNextRx = rx.copy(clock_env = delayedClockEnv)
       
-      val canTimePass = rx.inits.forall(s => checkInvariant(s, rx))
+      val canTimePass = rx.inits.forall(s => checkInvariant(s, potentialNextRx))
       
       if (canTimePass) {
         Set((QName(List("delay")), rx))

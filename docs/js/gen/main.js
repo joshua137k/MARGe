@@ -28166,19 +28166,53 @@ $c_Lmarge_backend_RxSemantics$.prototype.nextDelay__Lmarge_syntax_Program2$RxGra
     $n($m_s_Predef$().s_Predef$__f_Set);
     return $m_sci_Set$EmptySet$()
   };
+  var delayedClockEnv = $as_sci_Map($n($n(rx).Lmarge_syntax_Program2$RxGraph__f_clock_env).map__F1__sc_IterableOps(new $c_sjsr_AnonFunction1(((x$1) => {
+    var x$1$1 = $as_T2(x$1);
+    if ((x$1$1 !== null)) {
+      var c = $as_Lmarge_syntax_Program2$QName($n(x$1$1)._1__O());
+      var v = $uD($n(x$1$1)._2__O());
+      var _2 = (v + 1.0E-6);
+      return new $c_T2(c, _2)
+    };
+    throw new $c_s_MatchError(x$1$1)
+  }))));
+  $n(rx);
+  var this$4 = $n(rx);
+  var edg = this$4.Lmarge_syntax_Program2$RxGraph__f_edg;
+  var this$5 = $n(rx);
+  var on = this$5.Lmarge_syntax_Program2$RxGraph__f_on;
+  var this$6 = $n(rx);
+  var off = this$6.Lmarge_syntax_Program2$RxGraph__f_off;
+  var this$7 = $n(rx);
+  var lbls = this$7.Lmarge_syntax_Program2$RxGraph__f_lbls;
+  var this$8 = $n(rx);
+  var inits = this$8.Lmarge_syntax_Program2$RxGraph__f_inits;
+  var this$9 = $n(rx);
+  var act = this$9.Lmarge_syntax_Program2$RxGraph__f_act;
+  var this$10 = $n(rx);
+  var val_env = this$10.Lmarge_syntax_Program2$RxGraph__f_val_env;
+  var this$11 = $n(rx);
+  var clocks = this$11.Lmarge_syntax_Program2$RxGraph__f_clocks;
+  var this$12 = $n(rx);
+  var invariants = this$12.Lmarge_syntax_Program2$RxGraph__f_invariants;
+  var this$13 = $n(rx);
+  var edgeConditions = this$13.Lmarge_syntax_Program2$RxGraph__f_edgeConditions;
+  var this$14 = $n(rx);
+  var edgeUpdates = this$14.Lmarge_syntax_Program2$RxGraph__f_edgeUpdates;
+  var potentialNextRx = new $c_Lmarge_syntax_Program2$RxGraph(edg, on, off, lbls, inits, act, val_env, clocks, delayedClockEnv, invariants, edgeConditions, edgeUpdates);
   var canTimePass = $n($n(rx).Lmarge_syntax_Program2$RxGraph__f_inits).forall__F1__Z(new $c_sjsr_AnonFunction1(((s) => {
     var s$1 = $as_Lmarge_syntax_Program2$QName(s);
-    return $p_Lmarge_backend_RxSemantics$__checkInvariant__Lmarge_syntax_Program2$QName__Lmarge_syntax_Program2$RxGraph__Z(this, s$1, rx)
+    return $p_Lmarge_backend_RxSemantics$__checkInvariant__Lmarge_syntax_Program2$QName__Lmarge_syntax_Program2$RxGraph__Z(this, s$1, potentialNextRx)
   })));
   if (canTimePass) {
-    var this$6 = $n($m_s_Predef$().s_Predef$__f_Set);
+    var this$19 = $n($m_s_Predef$().s_Predef$__f_Set);
     var $$x1 = $m_sr_ScalaRunTime$();
     $n($m_s_package$().s_package$__f_List);
     var elems = $m_sr_ScalaRunTime$().wrapRefArray__AO__sci_ArraySeq(new ($d_T.getArrayOf().constr)(["delay"]));
     var n = $m_sci_Nil$().prependedAll__sc_IterableOnce__sci_List(elems);
     var _1 = new $c_Lmarge_syntax_Program2$QName(n);
     var elems$1 = $n($$x1).wrapRefArray__AO__sci_ArraySeq(new ($d_T2.getArrayOf().constr)([new $c_T2(_1, rx)]));
-    return this$6.from__sc_IterableOnce__sci_Set(elems$1)
+    return this$19.from__sc_IterableOnce__sci_Set(elems$1)
   } else {
     $n($m_s_Predef$().s_Predef$__f_Set);
     return $m_sci_Set$EmptySet$()
