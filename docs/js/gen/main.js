@@ -28877,6 +28877,8 @@ $c_Lmarge_frontend_CaosConfig2$.prototype.advanceTime__D__V = (function(delayAmo
       var this$24 = $m_s_Console$();
       var this$25 = $n(this$24.out__Ljava_io_PrintStream());
       this$25.java$lang$JSConsoleBasedPrintStream$$printString__T__V((x$2 + "\n"));
+      var fullJson$2 = $p_Lmarge_frontend_CaosConfig2$__generateSimulationJson__Lmarge_syntax_Program2$RxGraph__s_Option__T(this, currentState, $m_s_None$());
+      renderCytoscapeGraph("cytoscapeMainContainer", fullJson$2, false);
       stopAutoDelay()
     }
   }

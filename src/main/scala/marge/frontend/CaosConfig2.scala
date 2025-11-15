@@ -117,6 +117,8 @@ object CaosConfig2 extends Configurator[RxGraph]:
         global.renderCytoscapeGraph("cytoscapeMainContainer", fullJson, false)
       } else {
         println(s"Aviso: Nenhuma transição de 'delay' de ${delayAmount}s permitida (viola uma invariante).")
+        val fullJson = generateSimulationJson(currentState, None)
+        global.renderCytoscapeGraph("cytoscapeMainContainer", fullJson, false)
         global.stopAutoDelay()
       }
     }

@@ -1,0 +1,58 @@
+// ==========================
+//  Banqueiro — 1 recurso (TOTAL = 30)
+//  X, Y, Z
+// ==========================
+
+int TOTAL = 30
+int TRUE = 1
+int T_MAX = 10
+int alloc_X = 5
+int alloc_Y = 11
+int alloc_Z = 5
+
+int need_X = 8
+int need_Y = 17
+int need_Z = 10
+
+int available = 9
+int done = 0
+init s0
+
+clock t
+
+inv s1: t <= T_MAX
+inv s0: t <= T_MAX
+
+s0 --> s1: start if (TRUE == 1) then {
+  available' := 25;
+  done' := 0;
+  t' := 0
+}
+
+s1 --> s1: choose_X if (need_X <= available AND t <= T_MAX) then {
+  available' := available + alloc_X;
+  done' := done + 1;
+  t' := 0
+}
+
+s1 --> s1: choose_Y if (need_Y <= available AND t <= T_MAX) then {
+  available' := available + alloc_Y;
+  done' := done + 1;
+  t' := 0
+}
+
+s1 --> s1: choose_Z if (need_Z <= available AND t <= T_MAX) then {
+  available' := available + alloc_Z;
+  done' := done + 1;
+  t' := 0
+}
+
+choose_X --! choose_X
+choose_Y --! choose_Y
+choose_Z --! choose_Z
+
+s1 --> s_timeout: timeout if (t >= T_MAX AND done < 3)
+s1 --> s_safe:   safe_state   if (done == 3)
+
+s_safe   --> s0: reset
+s_unsafe --> s0: reset

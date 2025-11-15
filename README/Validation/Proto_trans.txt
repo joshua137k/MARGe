@@ -1,0 +1,74 @@
+// Control variables for each edge label
+int choose_Z_active = 1
+int reset_active = 1
+int choose_X_active = 1
+int start_active = 1
+int choose_Y_active = 1
+int timeout_active = 1
+int safe_state_active = 1
+
+// Initial state
+int TOTAL = 30
+int TRUE = 1
+int T_MAX = 10
+int alloc_X = 5
+int alloc_Y = 11
+int alloc_Z = 5
+int need_X = 8
+int need_Y = 17
+int need_Z = 10
+int available = 9
+int done = 0
+init s0
+
+clock t
+
+inv s1: t <= T_MAX
+inv s0: t <= T_MAX
+
+// --- Translated Edges ---
+s0 --> s1: start if (start_active == 1 AND (TRUE == 1)) then {
+    // Original updates from the simple edge
+    available' := 25
+    done' := 0
+    t' := 0
+}
+
+s1 --> s1: choose_Y if (choose_Y_active == 1 AND ((need_Y <= available AND t <= T_MAX))) then {
+    // Original updates from the simple edge
+    available' := available + alloc_Y
+    done' := done + 1
+    t' := 0
+
+    // Effect from: choose_Y --! choose_Y
+    choose_Y_active' := 0
+}
+
+s1 --> s1: choose_Z if (choose_Z_active == 1 AND ((need_Z <= available AND t <= T_MAX))) then {
+    // Original updates from the simple edge
+    available' := available + alloc_Z
+    done' := done + 1
+    t' := 0
+
+    // Effect from: choose_Z --! choose_Z
+    choose_Z_active' := 0
+}
+
+s1 --> s_safe: safe_state if (safe_state_active == 1 AND (done == 3))
+
+s1 --> s_timeout: timeout if (timeout_active == 1 AND ((t >= T_MAX AND done < 3)))
+
+s1 --> s1: choose_X if (choose_X_active == 1 AND ((need_X <= available AND t <= T_MAX))) then {
+    // Original updates from the simple edge
+    available' := available + alloc_X
+    done' := done + 1
+    t' := 0
+
+    // Effect from: choose_X --! choose_X
+    choose_X_active' := 0
+}
+
+s_safe --> s0: reset if (reset_active == 1)
+
+s_unsafe --> s0: reset if (reset_active == 1)
+

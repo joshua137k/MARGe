@@ -2,6 +2,7 @@ var currentCytoscapeInstance = null;
 var textTraceHistory = [];
 var autoDelayTimer = null;
 
+window.stopAutoDelay = stopAutoDelay;
 
 
 function extractMermaidPositions(mermaidContainerId) {
