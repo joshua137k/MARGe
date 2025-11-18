@@ -135,7 +135,7 @@ async function setupInitialCytoscape(mainContainerId, combinedJsonData) {
     try {
         var data = JSON.parse(combinedJsonData);
 
-        const graphId = await generateGraphId(data.graphElements);
+        const graphId = generateGraphId(data.graphElements);
         if (!hasExistingLayoutsInLocalStorage()) {
             console.log("O LocalStorage está vazio. Tentando carregar layouts do arquivo padrão...");
             await loadDefaultLayoutsFromSeedFile();
@@ -873,23 +873,17 @@ function importAllLayoutsFromFile(cy, graphId, jsonString) {
 
 
 
-async function generateGraphId(graphElements) {
-    const stableString = JSON.stringify(graphElements, (key, value) => {
-        if (value instanceof Object && !Array.isArray(value)) {
-            return Object.keys(value)
-                .sort()
-                .reduce((sorted, key) => {
-                    sorted[key] = value[key];
-                    return sorted;
-                }, {});
-        }
-        return value;
-    });
-
-    const encoder = new TextEncoder();
-    const data = encoder.encode(stableString);
-    const hashBuffer = await crypto.subtle.digest('SHA-1', data);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-    return hashHex;
+function generateGraphId(graphElements) {
+    const stableString = JSON.stringify(graphElements); 
+    
+    let hash = 0;
+    if (stableString.length === 0) {
+        return '0';
+    }
+    for (let i = 0; i < stableString.length; i++) {
+        const char = stableString.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; 
+    }
+    return String(hash);
 }
