@@ -2,7 +2,11 @@ var currentCytoscapeInstance = null;
 var textTraceHistory = [];
 var autoDelayTimer = null;
 
+
+
 window.stopAutoDelay = stopAutoDelay;
+
+
 
 
 function extractMermaidPositions(mermaidContainerId) {
@@ -125,11 +129,17 @@ function renderCytoscapeGraph(mainContainerId, combinedJsonData, isFirstRender) 
 }
 
 
-function setupInitialCytoscape(mainContainerId, combinedJsonData) {
+async function setupInitialCytoscape(mainContainerId, combinedJsonData) {
     var mainContainer = document.getElementById(mainContainerId);
 
     try {
         var data = JSON.parse(combinedJsonData);
+
+        const graphId = await generateGraphId(data.graphElements);
+        if (!hasExistingLayoutsInLocalStorage()) {
+            console.log("O LocalStorage está vazio. Tentando carregar layouts do arquivo padrão...");
+            await loadDefaultLayoutsFromSeedFile();
+        }
         
         textTraceHistory = [];
         const target = data.graphElements.find(
@@ -142,7 +152,7 @@ function setupInitialCytoscape(mainContainerId, combinedJsonData) {
         const mermaidNodePositions = extractMermaidPositions('id-1996100447Box');
         const mermaidLabelPositions = extractMermaidEdgeLabelPositions('id-1996100447Box');
         
-        let layoutName = 'dagre'; 
+        let layoutName = 'presset'; 
 
         if (Object.keys(mermaidNodePositions).length > 0 || Object.keys(mermaidLabelPositions).length > 0) {
             console.log("Posições do Mermaid encontradas! Aplicando layout 'preset'.");
@@ -160,9 +170,7 @@ function setupInitialCytoscape(mainContainerId, combinedJsonData) {
                     labelMap.set(el.data.label, el);
                 }
             });
-            //console.log(idMap);
-            //console.log(labelMap);
-            //console.log(data.graphElements);
+
             data.graphElements.forEach(el => {
                 if (!el.data) return;
 
@@ -268,6 +276,18 @@ function setupInitialCytoscape(mainContainerId, combinedJsonData) {
                 rankDir: 'LR', fit: true, padding: 50, spacingFactor: 1.2, nodeSep: 60, rankSep: 70, edgeSep: 10
             }
         });
+        
+        const loadedFromLocal = loadLayoutFromLocalStorage(cy,graphId);
+        console.log(loadedFromLocal);
+
+        if (!loadedFromLocal) {
+            console.log("Nenhum layout local encontrado. Usando layout padrão.");
+           
+        }
+
+        cy.on('dragfree', 'node', function() {
+            autoSaveLayoutToLocalStorage(cy,graphId);
+        });
 
         cy.on('tap', 'node.event-node.enabled', function(evt){
             var node = evt.target;
@@ -306,6 +326,7 @@ function setupInitialCytoscape(mainContainerId, combinedJsonData) {
 
 
         currentCytoscapeInstance = cy;
+        updateButtonHandlers(cy, graphId);
         changeEdgeStyle('straight'); 
 
     } catch (e) {
@@ -324,6 +345,18 @@ function updateSidePanel(panelId, panelData) {
     const existingInput = document.getElementById('autoDelayIntervalInput');
     if (existingInput && existingInput.value) {
         savedDelayValue = existingInput.value;
+    }
+
+    let savedEdgeStyle = 'straight'; 
+    const existingEdgeSelector = document.getElementById('edgeStyleSelector');
+    if (existingEdgeSelector) {
+        savedEdgeStyle = existingEdgeSelector.value;
+    }
+
+    let savedLayout = 'preset'; 
+    const existingLayoutSelector = document.getElementById('layoutSelector');
+    if (existingLayoutSelector) {
+        savedLayout = existingLayoutSelector.value;
     }
     panelDiv.innerHTML = '';
 
@@ -489,7 +522,16 @@ function updateSidePanel(panelId, panelData) {
     layoutLabel.htmlFor = 'layoutSelector';
     var layoutSelector = document.createElement('select');
     layoutSelector.id = 'layoutSelector';
-    layoutSelector.innerHTML = `<option value="preset">Sincronizado</option><option value="dagre">Dagre (Hierárquico)</option><option value="cose">Cose (Forças)</option>`;
+    layoutSelector.innerHTML = `
+        <option value="preset">Sincronizado</option>
+        <option value="dagre">Dagre (Hierárquico)</option>
+        <option value="cose">Cose (Forças)</option>
+        <option value="circle">Círculo</option>
+        <option value="concentric">Concêntrico</option>
+        <option value="breadthfirst">Busca em Largura</option>
+        <option value="grid">Grade</option>
+        <option value="random">Aleatório</option>
+    `;
     layoutSelectorContainer.appendChild(layoutLabel);
     layoutSelectorContainer.appendChild(layoutSelector);
     panelDiv.appendChild(layoutSelectorContainer); 
@@ -507,7 +549,7 @@ function updateSidePanel(panelId, panelData) {
         <option value="straight">Direto</option>
     `;
     
-    edgeStyleSelector.value = 'straight';
+    edgeStyleSelector.value = savedEdgeStyle;
 
     edgeStyleSelector.onchange = function(event) {
         changeEdgeStyle(event.target.value);
@@ -517,23 +559,115 @@ function updateSidePanel(panelId, panelData) {
     edgeStyleContainer.appendChild(edgeStyleSelector);
     panelDiv.appendChild(edgeStyleContainer);
 
+    layoutSelector.value = savedLayout;
+
     layoutSelector.onchange = function(event) {
         var layoutName = event.target.value;
         var layoutOptions;
-        if (layoutName === 'dagre') {
-            layoutOptions = { name: 'dagre', rankDir: 'LR', fit: true, padding: 50, spacingFactor: 1.2, nodeSep: 60, rankSep: 70, edgeSep: 10 };
-        } else if (layoutName === 'cose') {
-            layoutOptions = { name: 'cose', animate: true, fit: true, padding: 30, nodeRepulsion: 9000, idealEdgeLength: 100, componentSpacing: 100 };
-        } else {
-             layoutOptions = { name: 'preset', fit: true, padding: 30 }; 
+        switch (layoutName) {
+            case 'dagre':
+                layoutOptions = { name: 'dagre', rankDir: 'LR', fit: true, padding: 50, spacingFactor: 1.5, nodeSep: 60, rankSep: 70, edgeSep: 10 };
+                break;
+            case 'cose':
+                layoutOptions = { name: 'cose', animate: true, fit: true, padding: 30, nodeRepulsion: 9000, idealEdgeLength: 100, componentSpacing: 100 };
+                break;
+            case 'circle':
+                layoutOptions = { name: 'circle', fit: true, padding: 30 };
+                break;
+            case 'concentric':
+                layoutOptions = { name: 'concentric', fit: true, padding: 30, concentric: function( node ){ return node.degree(); }, levelWidth: function( nodes ){ return 2; } };
+                break;
+            case 'breadthfirst':
+                layoutOptions = { name: 'breadthfirst', fit: true, padding: 30, directed: true };
+                break;
+            case 'grid':
+                layoutOptions = { name: 'grid', fit: true, padding: 30 };
+                break;
+            case 'random':
+                layoutOptions = { name: 'random', fit: true, padding: 30 };
+                break;
+  
+            default:
+                 layoutOptions = { name: 'preset', fit: true, padding: 30 };
         }
 
         if (currentCytoscapeInstance) {
             currentCytoscapeInstance.layout(layoutOptions).run();
         }
     };
+
+
+    panelDiv.appendChild(document.createElement('hr'));
+
+    var layoutPersistenceContainer = document.createElement('div');
+    layoutPersistenceContainer.style.marginTop = '10px';
+
+    var saveBtn = document.createElement('button');
+    saveBtn.innerText = 'Salvar Layout';
+    saveBtn.id = 'exportLayoutBtn';
+    saveBtn.style.width = '100%';
+    saveBtn.style.marginBottom = '5px';
+
+
+    var loadBtn = document.createElement('button');
+    loadBtn.innerText = 'Carregar Layout';
+    loadBtn.id = 'importLayoutBtn';
+    loadBtn.style.width = '100%';
+    
+    var fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.id = 'layoutFileInput';
+    fileInput.accept = '.json,application/json';
+    fileInput.style.display = 'none';
+
+
+    layoutPersistenceContainer.appendChild(saveBtn);
+    layoutPersistenceContainer.appendChild(loadBtn);
+    layoutPersistenceContainer.appendChild(fileInput); 
+
+    panelDiv.appendChild(layoutPersistenceContainer);
 }
 
+async function loadDefaultLayoutsFromSeedFile() {
+    const filePath = 'cy/all-cytoscape-layouts-backup.json';
+    
+    try {
+        const response = await fetch(filePath);
+        if (!response.ok) {
+            throw new Error(`A resposta da rede não foi OK: ${response.statusText}`);
+        }
+
+        const allLayouts = await response.json();
+        let layoutsLoaded = 0;
+
+        for (const key in allLayouts) {
+            if (key && key.startsWith('cyLayout_')) {
+                const valueString = JSON.stringify(allLayouts[key]);
+                localStorage.setItem(key, valueString);
+                layoutsLoaded++;
+            }
+        }
+
+        console.log(`${layoutsLoaded} layouts foram carregados com sucesso a partir do arquivo padrão.`);
+        return true;
+
+    } catch (error) {
+        console.warn(`Não foi possível carregar o arquivo de layout padrão de '${filePath}'. Isso é esperado se você não forneceu um.`);
+        return false;
+    }
+}
+
+function hasExistingLayoutsInLocalStorage() {
+    if (typeof localStorage === 'undefined') return false;
+
+    for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith('cyLayout_')) {
+            return true;
+        }
+    }
+    return false;
+}
 
 function stopAutoDelay() {
     if (autoDelayTimer) {
@@ -593,4 +727,169 @@ function toggleAutoDelay(isChecked) {
     } else {
         stopAutoDelay();
     }
+}
+
+function updateButtonHandlers(cy, graphId) {
+    const saveBtn = document.getElementById('exportLayoutBtn');
+    const loadBtn = document.getElementById('importLayoutBtn');
+    const fileInput = document.getElementById('layoutFileInput');
+
+    if (saveBtn) {
+        saveBtn.onclick = () => exportAllLayoutsToFile(); 
+    }
+    
+    if (loadBtn) {
+        loadBtn.onclick = () => fileInput.click();
+    }
+    
+    if (fileInput) {
+        fileInput.onchange = (event) => {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                importAllLayoutsFromFile(cy, graphId, e.target.result);
+            };
+            reader.readAsText(file);
+            event.target.value = '';
+        };
+    }
+}
+
+function autoSaveLayoutToLocalStorage(cy, graphId) {
+    if (!cy || !graphId || typeof localStorage === 'undefined') return;
+
+    const positions = {};
+    cy.nodes().forEach(node => {
+        positions[node.id()] = node.position();
+    });
+
+    const storageKey = `cyLayout_${graphId}`;
+    localStorage.setItem(storageKey, JSON.stringify(positions));
+}
+
+
+function loadLayoutFromLocalStorage(cy, graphId) {
+    if (!cy || !graphId || typeof localStorage === 'undefined') return false;
+
+    const storageKey = `cyLayout_${graphId}`;
+    const savedLayout = localStorage.getItem(storageKey);
+
+    if (savedLayout) {
+        try {
+            const positions = JSON.parse(savedLayout);
+            cy.batch(() => {
+                for (const nodeId in positions) {
+                    const node = cy.getElementById(nodeId);
+                    if (node.length > 0) node.position(positions[nodeId]);
+                }
+            });
+            cy.fit(null, 50);
+            console.log(`Layout carregado do LocalStorage para o grafo ${graphId.substring(0, 8)}...`);
+            return true;
+        } catch (e) {
+            console.error("Falha ao carregar layout do LocalStorage:", e);
+            localStorage.removeItem(storageKey);
+            return false;
+        }
+    }
+    return false;
+}
+
+
+function exportAllLayoutsToFile() {
+    if (typeof localStorage === 'undefined') {
+        alert("O LocalStorage não é suportado neste navegador.");
+        return;
+    }
+
+    const allLayouts = {};
+    let layoutsFound = 0;
+
+    for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+
+        if (key && key.startsWith('cyLayout_')) {
+
+            allLayouts[key] = JSON.parse(localStorage.getItem(key));
+            layoutsFound++;
+        }
+    }
+
+    if (layoutsFound === 0) {
+        alert("Nenhum layout salvo foi encontrado para exportar.");
+        return;
+    }
+
+    const jsonString = JSON.stringify(allLayouts, null, 2);
+    const blob = new Blob([jsonString], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'all-cytoscape-layouts-backup.json'; 
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(a.href);
+
+    console.log(`${layoutsFound} layouts foram exportados com sucesso.`);
+}
+
+
+function importAllLayoutsFromFile(cy, graphId, jsonString) {
+    if (typeof localStorage === 'undefined') {
+        alert("O LocalStorage não é suportado neste navegador.");
+        return;
+    }
+
+    try {
+        const allLayouts = JSON.parse(jsonString);
+        let layoutsImported = 0;
+
+
+        for (const key in allLayouts) {
+            if (key && key.startsWith('cyLayout_')) {
+                const value = JSON.stringify(allLayouts[key]);
+                localStorage.setItem(key, value);
+                layoutsImported++;
+            }
+        }
+
+        if (layoutsImported > 0) {
+            alert(`${layoutsImported} layouts foram importados com sucesso para o seu navegador!`);
+            
+            console.log("Tentando aplicar o layout para o grafo atual...");
+            loadLayoutFromLocalStorage(cy, graphId);
+
+        } else {
+            alert("Nenhum layout válido encontrado no arquivo selecionado.");
+        }
+
+    } catch (e) {
+        console.error("Falha ao importar layouts do arquivo.", e);
+        alert("Erro ao ler o arquivo. Verifique se é um backup de layout válido.");
+    }
+}
+
+
+
+
+async function generateGraphId(graphElements) {
+    const stableString = JSON.stringify(graphElements, (key, value) => {
+        if (value instanceof Object && !Array.isArray(value)) {
+            return Object.keys(value)
+                .sort()
+                .reduce((sorted, key) => {
+                    sorted[key] = value[key];
+                    return sorted;
+                }, {});
+        }
+        return value;
+    });
+
+    const encoder = new TextEncoder();
+    const data = encoder.encode(stableString);
+    const hashBuffer = await crypto.subtle.digest('SHA-1', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    return hashHex;
 }
