@@ -629,7 +629,7 @@ function updateSidePanel(panelId, panelData) {
 }
 
 async function loadDefaultLayoutsFromSeedFile() {
-    const filePath = 'cy/all-cytoscape-layouts-backup.json';
+    const filePath = 'js/cy/all-cytoscape-layouts-backup.json';
     
     try {
         const response = await fetch(filePath);
