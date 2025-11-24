@@ -47,9 +47,13 @@ object MaRGeTranslator {
       val isInitiallyActive = stx.lbls.get(label).exists(_.exists(stx.act.contains))
       builder.append(s"int ${label.show}_active = ${if (isInitiallyActive) 1 else 0}\n")
     }
-    builder.append("\n// Initial state\n")
+    builder.append("\n// Declarations & Initial state\n")
     originalLines.foreach { line =>
-      if (line.trim.startsWith("int ") || line.trim.startsWith("init ")) {
+      val trim = line.trim
+      if (trim.startsWith("int ") || 
+          trim.startsWith("init ") || 
+          trim.startsWith("clock ") || 
+          trim.startsWith("inv ")) {
         builder.append(line).append("\n")
       }
     }
@@ -141,6 +145,25 @@ object MaRGeTranslator {
     }
 
     val edgesByAut = allSimpleEdges.groupBy(e => getScope(e._1).getOrElse(""))
+    val knownScopes = edgesByAut.keySet
+
+    stx.clocks.filterNot(c => c.n.nonEmpty && knownScopes.contains(c.n.head)).foreach { c =>
+        builder.append(s"clock ${formatQName(c)}\n")
+    }
+
+    stx.invariants.foreach { case (state, cond) =>
+        val stateScope = getScope(state)
+        val belongsToAut = stateScope.exists(knownScopes.contains)
+        
+        val isStrictlyLocal = belongsToAut && getConditionVars(cond).forall { v => 
+            getScope(v) == stateScope || v.n.mkString.contains("_") 
+        }
+
+        if (!belongsToAut || !isStrictlyLocal) {
+            builder.append(s"inv ${formatQName(state)}: ${conditionToString(cond)}\n")
+        }
+    }
+
     
     for ((autName, edges) <- edgesByAut if autName.nonEmpty) {
       builder.append(s"\naut $autName {\n")
@@ -217,6 +240,17 @@ object MaRGeTranslator {
     }
     result.toString()
   }
+
+  private def getConditionVars(cond: Condition): Set[QName] = cond match {
+      case Condition.AtomicCond(left, _, right) =>
+        val rightVars = right match {
+          case Right(q) => Set(q)
+          case Left(_) => Set.empty
+        }
+        Set(left) ++ rightVars
+      case Condition.And(l, r) => getConditionVars(l) ++ getConditionVars(r)
+      case Condition.Or(l, r) => getConditionVars(l) ++ getConditionVars(r)
+    }
 
   private def findAllTriggeredEffects(initialLabel: QName, stx: RxGraph): List[Effect] = {
     val effects = collection.mutable.ListBuffer[Effect]()

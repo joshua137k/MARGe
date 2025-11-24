@@ -410,7 +410,7 @@ object CaosConfig2 extends Configurator[RxGraph]:
 
 
           val buttonStable = dom.document.createElement("button").asInstanceOf[html.Button]
-          buttonStable.textContent = "Download XML (GLTS TO UPPAAL)"
+          buttonStable.textContent = "Download XML (TGLTS ou GLTS TO UPPAAL)"
           buttonStable.className = "btn btn-secondary"
           buttonStable.style.marginRight = "5px" 
 
@@ -443,6 +443,24 @@ object CaosConfig2 extends Configurator[RxGraph]:
             }
           }
           div.appendChild(buttonNew)
+
+
+          val buttonNew2 = dom.document.createElement("button").asInstanceOf[html.Button]
+          buttonNew2.textContent = "Download XML (TGRG TO UPPAL)"
+          buttonNew2.className = "btn btn-info"
+
+          buttonNew2.onclick = (e: dom.MouseEvent) => {
+            try {
+              
+                val uppaalXml = UppaalConverter3.convert(stx, currentCode)
+                downloadFile("model_TGRG.xml", uppaalXml)
+
+            } catch {
+              case t: Throwable =>
+                dom.window.alert(s"Error during Uppaal conversion:\n${t.getMessage}\nCheck browser console for details.")
+            }
+          }
+          div.appendChild(buttonNew2)
         }
       },
       buttons = List()
